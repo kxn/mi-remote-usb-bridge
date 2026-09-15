@@ -1,0 +1,8 @@
+{
+  "source": "build/logs/hardware-020-debug.jsonl",
+  "time": "2026-09-14T14:56:04+08:00",
+  "firmware": "0.2.0-debug",
+  "length": 86,
+  "usb_recovery": "Last debug frame contained one exact duplicate 64-byte block at offsets 1 and 65. Removed first block offline; original frame CRC validates. No runtime parser recovery/bypass.",
+  "hex": "05010906a10105070906a101850195037510150025fe190029fe8100c00600ff0900a101850675089578150025ff190029ff8100850775089578150025ff190029ff8100850875089578150025ff190029ff8100c0c0"
+}

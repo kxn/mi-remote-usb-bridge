@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/openwch/ch583",
+  "revision": "bd508ad7ceed48377619837051412a651952857f",
+  "ble_header_version": "V2.10",
+  "sha256": {
+    "firmware/wch/vendor/lib/LIBCH58xBLE.a": "13bd910bc647ce7ba2bc9a36de2fa5bed987ef83b9dacf5045f653bb062c67ce",
+    "firmware/wch/vendor/periph/libISP583.a": "3aca22e7ea24d6011de90e5a865922834d2c5bb664734fa66536cf52acea6285"
+  }
+}

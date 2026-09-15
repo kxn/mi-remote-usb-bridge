@@ -1,0 +1,4 @@
+# Preserve original SDK encodings and exact release source bytes.
+* -text
+*.a binary
+*.bin binary

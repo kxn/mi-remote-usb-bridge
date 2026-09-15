@@ -1,0 +1,26 @@
+#ifndef RBP_HOST_DECODER_H
+#define RBP_HOST_DECODER_H
+#include "rbp/audio.h"
+#include "ima_decoder.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+enum {RBP_DECODE_OK=0,RBP_DECODE_UNSUPPORTED=1,RBP_DECODE_CONFIG=2,
+      RBP_DECODE_CAPACITY=3,RBP_DECODE_INPUT=4};
+/* Caller-owned, no allocation/threads. Reinitialize at each decoder epoch.
+ * ABI version/size are explicit; config pointers are never retained. */
+typedef struct {
+    uint32_t size,abi_version;
+    uint32_t max_unit_bytes,sample_rate;
+    ima_state_t ima;
+    uint8_t ready;
+} rbp_decoder_t;
+int rbp_decoder_init(rbp_decoder_t *decoder,uint32_t size,const rbp_audio_format_t *format);
+/* Input is one complete coding unit; capacity/output are int16 sample frames.
+ * Failure never partially decodes. The output buffer belongs to the caller. */
+int rbp_decoder_decode(rbp_decoder_t *decoder,const uint8_t *encoded,uint32_t bytes,
+                       int16_t *pcm,uint32_t capacity,uint32_t *written);
+#ifdef __cplusplus
+}
+#endif
+#endif

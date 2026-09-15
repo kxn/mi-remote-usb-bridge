@@ -1,0 +1,20 @@
+{
+  "source": "build\\logs\\hardware-032-debug.jsonl",
+  "protocol_mode": {
+    "handle": 91,
+    "value_hex": "01",
+    "record_sequence": 364
+  },
+  "atvv_caps": {
+    "handle": 775,
+    "value_hex": "0b0100020300780000",
+    "record_sequence": 790
+  },
+  "pair_result": {
+    "opcode": 386,
+    "result": 10,
+    "time": "2026-09-14T16:01:14.310940+08:00"
+  },
+  "paired": false,
+  "audio_validated": false
+}

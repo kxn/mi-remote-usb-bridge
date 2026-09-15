@@ -1,0 +1,30 @@
+[
+  {
+    "platform": "windows",
+    "name": "MounRiver_Studio_Setup_V2.5.0.zip",
+    "resource_id": "2071891610158804994",
+    "resolver_url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071891610158804994",
+    "downloaded": false
+  },
+  {
+    "platform": "mac",
+    "name": "MounRiver_Studio_MacOS_ARM64_V2.5.0.tar.gz",
+    "resource_id": "2071922455275941890",
+    "resolver_url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071922455275941890",
+    "downloaded": false
+  },
+  {
+    "platform": "linux",
+    "name": "MounRiverStudio_Linux_X64_V2.5.0.deb",
+    "resource_id": "2071888197337526273",
+    "resolver_url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071888197337526273",
+    "downloaded": false
+  },
+  {
+    "platform": "linux",
+    "name": "MounRiverStudio_Linux_X64_V2.5.0.tar.xz",
+    "resource_id": "2071903155399995393",
+    "resolver_url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071903155399995393",
+    "downloaded": false
+  }
+]

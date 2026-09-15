@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "models": {
+    "xiaomi.rc003": {
+      "3": {"windows": [38], "macos": [126]},
+      "4": {"windows": [40], "macos": [125]},
+      "5": {"windows": [37], "macos": [123]},
+      "6": {"windows": [39], "macos": [124]},
+      "7": {"windows": [13], "macos": [36]},
+      "8": {"windows": [27], "macos": [53]},
+      "9": {"windows": [], "macos": []}
+    }
+  }
+}

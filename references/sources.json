@@ -1,0 +1,429 @@
+[
+  {
+    "id": "wch-ch583",
+    "repo": "openwch/ch583",
+    "note": "WCH官方SDK、芯片手册、BLE库与例程、ISP工具",
+    "revision": "bd508ad7ceed48377619837051412a651952857f"
+  },
+  {
+    "id": "weact-ble-core",
+    "repo": "WeActStudio/WeActStudio.WCH-BLE-Core",
+    "note": "板级原理图与BOOT下载参考；不是用户板型确认",
+    "revision": "1ee632c27b2caef52a65079a98a51e9bf7f42f61"
+  },
+  {
+    "id": "mi-ao",
+    "repo": "fanxeon/mi-ao",
+    "note": "RC003固件2671 ATVV实测与macOS参考（GPL，仅参考）",
+    "revision": "d6019bcede80ff71d225385b5c44b6f5f84a4832"
+  },
+  {
+    "id": "mi-remote-gateway",
+    "repo": "daishuge/mi-remote-gateway",
+    "note": "其他MCU板上ATVV解码参考（GPL，仅参考）",
+    "revision": "1015085061911b10c20a52bcee384a4f6f7b8783"
+  },
+  {
+    "id": "esphome-mi-remote",
+    "repo": "shammysha/esphome-ble-mi-remote",
+    "note": "小米HID按键映射参考",
+    "revision": "a730c977f2df97f4722a0b5aa9ddf7ada2a715cf"
+  },
+  {
+    "id": "pyserial",
+    "repo": "pyserial/pyserial",
+    "note": "串口源代码、API文档与例子",
+    "revision": "a5c48d445fbc1943d4fabf8d9090a50fda3172fd"
+  },
+  {
+    "id": "cherryusb",
+    "repo": "cherry-embedded/CherryUSB",
+    "note": "可选USB设备栈源代码与许可",
+    "revision": "ef198ee64a3dc4dc7237f017e59f435a407593a8"
+  },
+  {
+    "id": "atvv-1.0",
+    "url": "https://wangefan.github.io/linux_kernel_driver/resources/Google_Voice_over_BLE_spec_v1.0.pdf",
+    "format": "pdf",
+    "note": "Google编写规范的第三方公开镜像，非Google官方下载",
+    "path": "references/documents/atvv-1.0.pdf"
+  },
+  {
+    "id": "usb-hid-1.11",
+    "url": "https://www.usb.org/sites/default/files/hid1_11.pdf",
+    "format": "pdf",
+    "note": "USB HID描述符规范",
+    "path": "references/documents/usb-hid-1.11.pdf"
+  },
+  {
+    "id": "usb-hut-1.5",
+    "url": "https://www.usb.org/sites/default/files/hut1_5.pdf",
+    "format": "pdf",
+    "note": "USB HID Usage Tables",
+    "path": "references/documents/usb-hut-1.5.pdf"
+  },
+  {
+    "id": "usb-cdc-1.2",
+    "url": "https://www.usb.org/sites/default/files/CDC1.2_WMC1.1_012011.zip",
+    "format": "zip",
+    "note": "CDC及PSTN子类规范",
+    "path": "references/documents/usb-cdc-1.2.zip"
+  },
+  {
+    "id": "windows-cdc",
+    "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-driver-installation-based-on-compatible-ids",
+    "format": "html",
+    "note": "系统CDC驱动识别条件",
+    "path": "references/documents/windows-cdc.html"
+  },
+  {
+    "id": "windows-sendinput",
+    "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput",
+    "format": "html",
+    "note": "输入注入及限制",
+    "path": "references/documents/windows-sendinput.html"
+  },
+  {
+    "id": "python-wave",
+    "url": "https://docs.python.org/3.13/library/wave.html",
+    "format": "html",
+    "note": "WAV",
+    "path": "references/documents/python-wave.html"
+  },
+  {
+    "id": "python-struct",
+    "url": "https://docs.python.org/3.13/library/struct.html",
+    "format": "html",
+    "note": "二进制端序",
+    "path": "references/documents/python-struct.html"
+  },
+  {
+    "id": "python-ctypes",
+    "url": "https://docs.python.org/3.13/library/ctypes.html",
+    "format": "html",
+    "note": "C ABI",
+    "path": "references/documents/python-ctypes.html"
+  },
+  {
+    "id": "pyserial-api",
+    "url": "https://pyserial.readthedocs.io/en/latest/pyserial_api.html",
+    "format": "html",
+    "note": "读写超时、串口控制、POSIX exclusive",
+    "path": "references/documents/pyserial-api.html"
+  },
+  {
+    "id": "pyserial-ports",
+    "url": "https://pyserial.readthedocs.io/en/latest/tools.html",
+    "format": "html",
+    "note": "设备发现",
+    "path": "references/documents/pyserial-ports.html"
+  },
+  {
+    "id": "qt-pyside",
+    "url": "https://doc.qt.io/qtforpython-6/",
+    "format": "html",
+    "note": "PySide文档入口",
+    "path": "references/documents/qt-pyside.html"
+  },
+  {
+    "id": "qt-qthread",
+    "url": "https://doc.qt.io/qtforpython-6/PySide6/QtCore/QThread.html",
+    "format": "html",
+    "note": "线程与事件循环",
+    "path": "references/documents/qt-qthread.html"
+  },
+  {
+    "id": "qt-qaudiosink",
+    "url": "https://doc.qt.io/qtforpython-6/PySide6/QtMultimedia/QAudioSink.html",
+    "format": "html",
+    "note": "PCM回放",
+    "path": "references/documents/qt-qaudiosink.html"
+  },
+  {
+    "id": "qt-qaudioformat",
+    "url": "https://doc.qt.io/qtforpython-6/PySide6/QtMultimedia/QAudioFormat.html",
+    "format": "html",
+    "note": "音频格式支持",
+    "path": "references/documents/qt-qaudioformat.html"
+  },
+  {
+    "id": "qt-signals",
+    "url": "https://doc.qt.io/qtforpython-6/tutorials/basictutorial/signals_and_slots.html",
+    "format": "html",
+    "note": "GUI跨线程通知",
+    "path": "references/documents/qt-signals.html"
+  },
+  {
+    "id": "apple-accessibility",
+    "url": "https://support.apple.com/en-my/guide/mac-help/mh43185/mac",
+    "format": "html",
+    "note": "macOS辅助功能权限",
+    "path": "references/documents/apple-accessibility.html"
+  },
+  {
+    "id": "apple-serial",
+    "url": "https://developer.apple.com/library/archive/samplecode/SerialPortSample/Introduction/Intro.html",
+    "format": "html",
+    "note": "IOKit串口设备发现示例入口",
+    "path": "references/documents/apple-serial.html"
+  },
+  {
+    "id": "dotnet-serialport",
+    "url": "https://learn.microsoft.com/en-us/dotnet/api/system.io.ports.serialport?view=net-10.0",
+    "format": "html",
+    "note": "C#串口API",
+    "path": "references/documents/dotnet-serialport.html"
+  },
+  {
+    "id": "mounriver-download",
+    "url": "https://www.mounriver.com/download",
+    "format": "html",
+    "note": "工具链官方下载入口（动态页面）",
+    "path": "references/documents/mounriver-download.html"
+  },
+  {
+    "id": "pyserial-pypi",
+    "url": "https://pypi.org/pypi/pyserial/3.5/json",
+    "format": "json",
+    "note": "固定版本分发文件直链与hash",
+    "path": "references/documents/pyserial-pypi.json"
+  },
+  {
+    "id": "pyside6-pypi",
+    "url": "https://pypi.org/pypi/PySide6/json",
+    "format": "json",
+    "note": "当前发布元数据；非项目版本锁定",
+    "path": "references/documents/pyside6-pypi.json"
+  },
+  {
+    "id": "bluetooth-hogp-1.0",
+    "url": "https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=245141",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-hogp-1.0.pdf",
+    "note": "Bluetooth SIG official archive; Core 5.3 is historical SDK reference"
+  },
+  {
+    "id": "bluetooth-hids-1.0",
+    "url": "https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=245140",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-hids-1.0.pdf",
+    "note": "Bluetooth SIG official archive; Core 5.3 is historical SDK reference"
+  },
+  {
+    "id": "bluetooth-bas-1.0",
+    "url": "https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=245138",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-bas-1.0.pdf",
+    "note": "Bluetooth SIG official archive; Core 5.3 is historical SDK reference"
+  },
+  {
+    "id": "bluetooth-core-5.3",
+    "url": "https://www.bluetooth.org/DocMan/handlers/DownloadDoc.ashx?doc_id=521059",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-core-5.3.pdf",
+    "note": "Bluetooth SIG official archive; Core 5.3 is historical SDK reference"
+  },
+  {
+    "id": "bluetooth-errata-23224",
+    "url": "https://www.bluetooth.org/DocMan/handlers/DownloadDoc.ashx?doc_id=572314",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-errata-23224.pdf",
+    "note": "Bluetooth SIG official archive; Core 5.3 is historical SDK reference"
+  },
+  {
+    "id": "telink-LICENSE",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/LICENSE?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/LICENSE.b64",
+    "decoded_path": "references/sources/telink-atvv/LICENSE",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-readme",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/readme?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/readme.b64",
+    "decoded_path": "references/sources/telink-atvv/readme",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-sdk_version-txt",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/sdk_version.txt?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/sdk_version.txt.b64",
+    "decoded_path": "references/sources/telink-atvv/sdk_version.txt",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-adpcm-c",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/adpcm.c?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/adpcm.c.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/adpcm.c",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-adpcm-h",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/adpcm.h?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/adpcm.h.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/adpcm.h",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-audio_common-h",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/audio_common.h?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/audio_common.h.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/audio_common.h",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-audio_config-h",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/audio_config.h?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/audio_config.h.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/audio_config.h",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-gl_audio-c",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/gl_audio.c?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/gl_audio.c.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/gl_audio.c",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-gl_audio-h",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/gl_audio.h?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/gl_audio.h.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/gl_audio.h",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-tl_audio-c",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/tl_audio.c?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/tl_audio.c.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/tl_audio.c",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "telink-application-audio-tl_audio-h",
+    "url": "https://android.googlesource.com/platform/hardware/telink/atv/refDesignRcu/+/184660d870ebcfadbef674315a79a80b8c14a754/application/audio/tl_audio.h?format=TEXT",
+    "format": "base64",
+    "path": "references/gitiles/application/audio/tl_audio.h.b64",
+    "decoded_path": "references/sources/telink-atvv/application/audio/tl_audio.h",
+    "note": "Google-hosted Telink reference; revision 184660d870ebcfadbef674315a79a80b8c14a754; selected files, not buildable SDK"
+  },
+  {
+    "id": "bluetooth-dis-1.1",
+    "url": "https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=244369",
+    "format": "pdf",
+    "path": "references/documents/bluetooth-dis-1.1.pdf",
+    "note": "Direct official source / package metadata"
+  },
+  {
+    "id": "bluetooth-assigned-numbers",
+    "url": "https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/index-en.html",
+    "format": "html",
+    "path": "references/documents/bluetooth-assigned-numbers.html",
+    "note": "Direct official source / package metadata"
+  },
+  {
+    "id": "mounriver-app",
+    "url": "https://www.mounriver.com/static/js/app.bc0d47978780c22c34e1.js",
+    "format": "js",
+    "path": "references/documents/mounriver-app.js",
+    "note": "Direct official source / package metadata"
+  },
+  {
+    "id": "pypdf-pypi",
+    "url": "https://pypi.org/pypi/pypdf/6.0.0/json",
+    "format": "json",
+    "path": "references/documents/pypdf-pypi.json",
+    "note": "Direct official source / package metadata"
+  },
+  {
+    "id": "pymupdf-pypi",
+    "url": "https://pypi.org/pypi/PyMuPDF/1.26.4/json",
+    "format": "json",
+    "path": "references/documents/pymupdf-pypi.json",
+    "note": "Direct official source / package metadata"
+  },
+  {
+    "id": "pyserial-3.5-wheel",
+    "url": "https://files.pythonhosted.org/packages/07/bc/587a445451b253b285629263eb51c2d8e9bcea4fc97826266d186f96f558/pyserial-3.5-py2.py3-none-any.whl",
+    "format": "wheel",
+    "path": "references/packages/pyserial-3.5-py2.py3-none-any.whl",
+    "note": "Portable pySerial 3.5 runtime wheel; not installed",
+    "expected_sha256": "c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"
+  },
+  {
+    "id": "mounriver-windows",
+    "url": "https://api.mounriver.com/mountriver/api/version/fetchRecent?swType=2&osType=WINDOWS&lang=en",
+    "format": "json",
+    "path": "references/documents/mounriver-windows.json",
+    "note": "Official IDE release metadata; installer not downloaded"
+  },
+  {
+    "id": "mounriver-mac",
+    "url": "https://api.mounriver.com/mountriver/api/version/fetchRecent?swType=2&osType=MAC&lang=en",
+    "format": "json",
+    "path": "references/documents/mounriver-mac.json",
+    "note": "Official IDE release metadata; installer not downloaded"
+  },
+  {
+    "id": "mounriver-linux",
+    "url": "https://api.mounriver.com/mountriver/api/version/fetchRecent2?swType=2&osType=LINUX&lang=en",
+    "format": "json",
+    "path": "references/documents/mounriver-linux.json",
+    "note": "Official IDE release metadata; installer not downloaded"
+  },
+  {
+    "id": "mounriver-link-windows-0",
+    "url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071891610158804994",
+    "format": "json",
+    "path": "references/documents/mounriver-link-windows-0.json",
+    "note": "Official fixed resource-ID download resolver; binary not cached"
+  },
+  {
+    "id": "mounriver-link-mac-0",
+    "url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071922455275941890",
+    "format": "json",
+    "path": "references/documents/mounriver-link-mac-0.json",
+    "note": "Official fixed resource-ID download resolver; binary not cached"
+  },
+  {
+    "id": "mounriver-link-linux-0",
+    "url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071888197337526273",
+    "format": "json",
+    "path": "references/documents/mounriver-link-linux-0.json",
+    "note": "Official fixed resource-ID download resolver; binary not cached"
+  },
+  {
+    "id": "mounriver-link-linux-1",
+    "url": "https://api.mounriver.com/mountriver/api/version/getDownloadUrl?resourceId=2071903155399995393",
+    "format": "json",
+    "path": "references/documents/mounriver-link-linux-1.json",
+    "note": "Official fixed resource-ID download resolver; binary not cached"
+  },
+  {
+    "id": "pypdf-wheel",
+    "url": "https://files.pythonhosted.org/packages/2c/83/2cacc506eb322bb31b747bc06ccb82cc9aa03e19ee9c1245e538e49d52be/pypdf-6.0.0-py3-none-any.whl",
+    "format": "wheel",
+    "path": "references/packages/pypdf-6.0.0-py3-none-any.whl",
+    "expected_sha256": "56ea60100ce9f11fc3eec4f359da15e9aec3821b036c1f06d2b660d35683abb8",
+    "note": "PDF archive extraction tool only; installed in project tools/_vendor"
+  },
+  {
+    "id": "pymupdf-wheel",
+    "url": "https://files.pythonhosted.org/packages/d1/c4/87d27b108c2f6d773aa5183c5ae367b2a99296ea4bc16eb79f453c679e30/pymupdf-1.26.4-cp39-abi3-win_amd64.whl",
+    "format": "wheel",
+    "path": "references/packages/pymupdf-1.26.4-cp39-abi3-win_amd64.whl",
+    "expected_sha256": "0b6345a93a9afd28de2567e433055e873205c52e6b920b129ca50e836a3aeec6",
+    "note": "PDF archive extraction tool only; installed in project tools/_vendor"
+  }
+]

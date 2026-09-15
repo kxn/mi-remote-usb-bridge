@@ -1,0 +1,17 @@
+[
+  {"name": "crc32c_0", "desc": "empty", "data": "00000000"},
+  {"name": "crc32c_1", "desc": "123456789", "data": "839206e3"},
+  {"name": "crc32c_2", "desc": "The quick brown fox jumps over the lazy dog", "data": "04046222"},
+  {"name": "cobs_0", "desc": "cobs encode of data", "data": "02010202"},
+  {"name": "cobs_1", "desc": "cobs encode of data", "data": "04414243"},
+  {"name": "cobs_2", "desc": "cobs encode of data", "data": "01"},
+  {"name": "cobs_3", "desc": "cobs encode of data", "data": "ffaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0101"},
+  {"name": "cobs_4", "desc": "cobs encode of data", "data": "ff55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555550255"},
+  {"name": "cobs_5", "desc": "cobs encode of data", "data": "0101010101"},
+  {"name": "hello_request_frame", "desc": "COBS framed HELLO request incl. delimiter", "data": "04524203020102200101010102010101020101010201010102140101010101010401071015a0a1a2a3a4a5a6a7a8a9aaabacadaeafc558f7fe00"},
+  {"name": "hello_response_frame", "desc": "COBS framed HELLO response incl. delimiter", "data": "045242030202022006040302010101010201010102010101024f0101010101010401071014a0a1a2a3a4a5a6a7a8a9aaabacadaeaf0207100113112233445566778899aabbccddeeff030610146272696467652073696d20312e302e300401010540050202010502060304020f0101051665357800"},
+  {"name": "keys_state_physical", "desc": "24B keys struct: Home+Down pressed", "data": "070000000020325100000000040100000000000001000000"},
+  {"name": "voice_data_payload", "desc": "RBP3 coding unit header + 2 ADPCM bytes", "data": "120000000300000001000000030000000200000000000000e00100000000000004000000000000001780"},
+  {"name": "voice_started_event", "desc": "VOICE_STARTED event frame", "data": "045242030203022006040302010901010101010103800301025b010102ab01010401030402120101040203040201010104030304020101010404020202010405030403803e01040601010501070704010101010408030401020201040904080101010101010101040a04080515cd5b07010101040b03040201010105bd40e56000"},
+  {"name": "ping_unknown_tag_frame", "desc": "PING with unknown tag/type to skip", "data": "045242030201022001010101020101010202010102020101021001010101010104f7550408deadbeef0103040978563412e7f5b24700"}
+]

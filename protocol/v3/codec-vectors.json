@@ -1,0 +1,22 @@
+[
+  {
+    "codec_id": 1,
+    "codec_revision": 1,
+    "config_hex": "00000000",
+    "encoded_hex": "17",
+    "sample_frames": 2,
+    "pcm_s16le_hex": "01000c00",
+    "final_predictor": 12,
+    "final_step_index": 8
+  },
+  {
+    "codec_id": 1,
+    "codec_revision": 1,
+    "config_hex": "2efb2a00",
+    "encoded_hex": "17",
+    "sample_frames": 2,
+    "pcm_s16le_hex": "c7fb7dfe",
+    "final_predictor": -387,
+    "final_step_index": 49
+  }
+]
