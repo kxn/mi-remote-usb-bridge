@@ -49,6 +49,7 @@ CLI 录音和日志：
 | `firmware/wch` | 板级、BLE/GATT、USB，以及固定 WCH SDK 子集 |
 | `protocol` | RBP/3 C 帧/TLV、音频结构、schema、测试向量 |
 | `client/python` | 独立 Python SDK，可安装；不依赖 Qt |
+| `client/dotnet` | 新增 .NET 9 RBP/3 会话与音频 SDK，见该目录 README |
 | `client/c` | 可选 C 音频解码库；不是完整串口会话 SDK |
 | `demo` | CLI、GUI、WAV/映射/离线重放 |
 | `tests`, `sim` | 自动回归与 C 模拟器 |
