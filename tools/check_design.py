@@ -7,8 +7,9 @@ import sys
 import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-paths = [ROOT / 'README.md', *sorted((ROOT / 'docs').glob('*.md')),
-         ROOT / 'references' / 'README.md', ROOT / 'THIRD_PARTY_NOTICES.md']
+paths = [ROOT / 'README.md', ROOT / 'THIRD_PARTY_NOTICES.md', ROOT / 'references' / 'README.md']
+for folder in ('docs', 'client', 'demo', 'protocol', 'releases'):
+    paths.extend(p for p in (ROOT / folder).rglob('*.md') if 'build' not in p.relative_to(ROOT).parts and not any(x.endswith('.egg-info') for x in p.parts))
 errors = []
 examples = 0
 links = 0

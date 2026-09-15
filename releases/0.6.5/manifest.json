@@ -20,7 +20,7 @@
     "client/c/rbp_decoder.c": "362bfaa18b00196f8e6b2fdaa546ea7fc0b270d2f5574c868bc7fc0aa7edabd3",
     "client/c/rbp_decoder.h": "415a6322da8b83c851f35dff5e2488d2b51e5a29a2fbc939226b5168e588d1a1",
     "client/python/LICENSE": "1f32e8aee98c88e27279b86afa448b259fb3563dd49e565093a92f18e758e26e",
-    "client/python/README.md": "229678cf44308429efbd07fdf38fd79b338d9bc78c8f2fbc8647fade2af4f5d9",
+    "client/python/README.md": "7a79c42e1540d36776dd2f551bc71539b31674ec39b1f8ebcadc0bacb7d12e02",
     "client/python/pyproject.toml": "f13ca94945139b02a53c03a5a28d2f0583a41e1f5ea2680be780650e65bd7f95",
     "client/python/rbp/__init__.py": "d185ba21e4cb5dc08bd5b23e97df18f2304bdb9f7f417b47ef05997c3453f1f1",
     "client/python/rbp/audio_wire.py": "42cec04211a6ece89996ce810f1362b8e14f40ef9dcfdb03b0d2c545099f05a0",
