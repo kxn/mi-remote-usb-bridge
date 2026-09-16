@@ -193,6 +193,7 @@ typedef struct {
 void rbp_server_set_profile(rbp_server_t *s,const rbp_device_profile_t *profile);
 void rbp_server_adapter_failed(rbp_server_t *s,const char *reason);
 bool rbp_server_voice_wanted(const rbp_server_t *s);
+uint32_t rbp_server_voice_capture_session(const rbp_server_t *s);
 bool rbp_server_should_reconnect(const rbp_server_t *s);
 void rbp_server_get_info(const rbp_server_t *s, rbp_server_info_t *out);
 

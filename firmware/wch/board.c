@@ -186,3 +186,5 @@ static bool store_save(void *user,const rbp_peer_record_t *rec) {
 }
 static bool store_clear(void *user) {(void)user;staged_valid=false;return write_record(1,NULL,board_peer_counter());}
 const rbp_store_t board_store={NULL,store_load,store_save,store_clear};
+
+#include "cache_store.inc"

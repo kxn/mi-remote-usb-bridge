@@ -160,6 +160,7 @@ struct rbp_server {
 
     /* voice */
     bool voice_enabled;
+    bool voice_denied; /* explicit host refusal; distinct from pending negotiation */
     uint32_t voice_resume_peer; /* explicit enable intent, scoped to session + bond */
     bool waiting_idle;
     uint32_t stream_id;
@@ -290,6 +291,7 @@ static void session_stop_delivery(rbp_server_t *s)
     s->key_q_count = 0;
     s->events_enabled = false;
     s->voice_enabled = false;
+    s->voice_denied = false;
     s->waiting_idle = false;
     s->stop_requested = false;
 }
@@ -933,7 +935,13 @@ void rbp_server_on_pair_done(rbp_server_t *s, uint16_t status, bool peer_committ
             rbp_peer_record_t committed=*peer;committed.auto_reconnect=true;
             if(s->cfg.store.save && !s->cfg.store.save(s->cfg.store.user,&committed)) {
                 status=RBP_STATUS_STORAGE_FAILED;uncertain=true;
-            } else {s->peer=committed;s->peer_valid=true;}
+            } else {
+                s->peer=committed;s->peer_valid=true;
+                /* A successful new bond starts a new reconnect intent.
+                 * FORGET/DISCONNECT paused the previous binding only.
+                 * Clear after durable commit, never on pairing failure. */
+                s->reconnect_paused=false;
+            }
         }
     }
 
@@ -1947,6 +1955,7 @@ static void dispatch_request(rbp_server_t *s, const rbp_header_t *h,
                 return;
             }
             memcpy(s->accepted_codecs,codecs,codec_len);s->accepted_len=(uint8_t)codec_len;s->accepted_max_unit=max_unit;
+            s->voice_denied=false;
             s->voice_resume_peer=s->peer_valid?s->peer.peer_id:0;
             if (!s->voice_enabled) {
                 s->voice_enabled = true;
@@ -1961,6 +1970,7 @@ static void dispatch_request(rbp_server_t *s, const rbp_header_t *h,
         } else {
             s->accepted_len=0;s->accepted_max_unit=0;
             s->voice_resume_peer=0;
+            s->voice_denied=true;
             bool was = s->voice_enabled;
             s->voice_enabled = false;
             s->waiting_idle = false;
@@ -2060,4 +2070,13 @@ void rbp_server_adapter_failed(rbp_server_t *s,const char *reason) {
     copy_name(s->link_msg,sizeof s->link_msg,reason);
     rbp_server_on_link(s,RBP_LINK_ERROR,0,s->now_ms);
     s->cfg.backend.disconnect(s->cfg.backend.user);
+}
+
+/* A bounded adapter-local preroll may wait for initial codec negotiation.
+ * Never authorize capture with no session, after explicit disable, or while
+ * the current stream is being drained. This token fences USB session changes. */
+uint32_t rbp_server_voice_capture_session(const rbp_server_t *s) {
+    return s->session_active && s->peer_valid && !s->voice_denied && !s->waiting_idle &&
+        s->voice_state!=RBP_VOICE_UNSUPPORTED && s->voice_state!=RBP_VOICE_FAILED
+        ?s->session_id:0;
 }

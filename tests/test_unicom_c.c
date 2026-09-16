@@ -12,6 +12,7 @@ static uint8_t ended_reason;static uint64_t last_keys;
 static uint16_t requested_uuid,requested_handle;static uint8_t last_cmd;
 static int submit_status;static bool voice_wanted=true;
 static char last_failure[96];
+static uint32_t capture_session=1;
 void rbp_server_adapter_failed(rbp_server_t*s,const char*r){(void)s;snprintf(last_failure,sizeof last_failure,"%s",r);failures++;}
 void rbp_server_set_profile(rbp_server_t*s,const rbp_device_profile_t*p){(void)s;(void)p;}
 void rbp_server_on_battery(rbp_server_t*s,uint8_t b,uint8_t c){(void)s;(void)c;battery=b;}
@@ -157,8 +158,172 @@ int main(void) {
     packet[2]=1;notify(a.unicom.fc,packet,20);packet[2]=2;notify(a.unicom.fc,packet,20);
     assert(!failures && a.unicom.previous==0 && !a.unicom.part);
     packet[2]=0;notify(a.unicom.fc,packet,20);assert(failures==1);
-    /* Detach discards Unicom runtime; a different peer cannot reuse it. */
-    a=discovered;rc003_adapter_detach(&a);assert(!a.unicom.selected && !a.unicom.hello && !a.unicom.active);
+    /* Same-bond restore reuses verified handles, never stream or held state. */
+    for(unsigned iteration=0;iteration<4;iteration++) {
+        a=discovered;failures=commands=voice_starts=voice_ends=0;
+        a.unicom.active=a.unicom.down=true;a.unicom.part=2;a.unicom.in_flight=1;
+        rc003_adapter_detach(&a);
+        assert(a.cache_valid && a.unicom.selected && !a.unicom.hello && !a.unicom.active &&
+               !a.unicom.down && !a.unicom.pending_voice && !a.unicom.part && !a.unicom.in_flight);
+        unsigned baseline=calls;
+        rc003_adapter_start_bound(&a,100,77);assert(a.restoring);
+        /* Notification may precede even the MTU response. */
+        notify(a.unicom.f8,press,20);assert(a.unicom.pending_voice && !commands);
+        if(iteration==1)notify(a.unicom.f8,release,20);
+        event(RBP_GATT_EVT_MTU_UPDATED);assert(a.state==ST_UNICOM_SUB);
+        assert(calls-baseline==1); /* Default MTU 23: only FD02 CCCD. */
+        notify(a.unicom.fd,hello,10);assert(!a.ready);
+        event(RBP_GATT_EVT_WRITE_DONE);assert(a.ready && a.voice_ready && a.cache_valid);
+        if(iteration==2)voice_wanted=false;
+        rc003_adapter_tick(&a,101);
+        if(iteration==1)assert(!commands && !a.unicom.active);
+        else assert(commands==1 && a.unicom.active && a.unicom.in_flight);
+        if(iteration==2){voice_wanted=true;rc003_adapter_tick(&a,102);assert(commands==1 && a.unicom.active);}
+        if(iteration!=1) {
+            event(RBP_GATT_EVT_WRITE_DONE);
+            FILE *audio=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");assert(audio);
+            voice_bytes=0;
+            for(unsigned i=0;i<3;i++){assert(fread(packet,1,20,audio)==20);notify(a.unicom.fc,packet,20);}
+            fclose(audio);assert(voice_starts==1 && voice_bytes==40 && !failures);
+        }
+    }
+    /* Optional database-change subscription and protocol mode retain ordering. */
+    a=discovered;commands=failures=0;
+    a.service_changed_cccd=0x98;a.protocol_mode_handle=0x97;
+    rc003_adapter_detach(&a);rc003_adapter_start_bound(&a,150,77);
+    notify(a.unicom.f8,press,20);
+    event(RBP_GATT_EVT_MTU_UPDATED);assert(a.state==ST_SUB_CHANGED);
+    event(RBP_GATT_EVT_WRITE_DONE);assert(a.state==ST_READ_PROTOCOL_MODE);
+    uint8_t mode=1;value(&mode,1);assert(a.state==ST_UNICOM_SUB);
+    event(RBP_GATT_EVT_WRITE_DONE);notify(a.unicom.fd,hello,10);
+    rc003_adapter_tick(&a,151);assert(a.ready && commands==1 && !failures);
+    /* Power-cycle serialization restores metadata only, then follows the same
+     * encrypted-link path. Corrupt length/profile/handles are rejected. */
+    uint8_t saved[384];a=discovered;
+    size_t saved_len=rc003_adapter_cache_export(&a,saved,sizeof saved);assert(saved_len>0);
+    rc003_adapter_init(&a,&ops,NULL,NULL);
+    assert(rc003_adapter_cache_import(&a,77,saved,saved_len));
+    assert(a.cache_valid && !a.ready && !a.unicom.hello && !a.unicom.down);
+    commands=failures=0;unsigned req_before=calls;
+    rc003_adapter_start_bound(&a,160,77);notify(a.unicom.f8,press,20);
+    event(RBP_GATT_EVT_MTU_UPDATED);event(RBP_GATT_EVT_WRITE_DONE);notify(a.unicom.fd,hello,10);
+    rc003_adapter_tick(&a,161);assert(a.ready && commands==1 && calls-req_before==2 && !failures);
+    rc003_adapter_init(&a,&ops,NULL,NULL);
+    assert(!rc003_adapter_cache_import(&a,77,saved,saved_len-1));
+    saved[48]=saved[49]=0;assert(!rc003_adapter_cache_import(&a,77,saved,saved_len));
+    assert(!a.ready && !a.cache_valid);
+    /* READY precedes host enable: capture now, deliver only after enable. */
+    a=discovered;voice_wanted=false;commands=failures=voice_starts=voice_bytes=voice_ends=0;
+    notify(a.unicom.f8,press,20);assert(a.unicom.active && !a.unicom.announced);
+    rc003_adapter_tick(&a,1);assert(commands==1);event(RBP_GATT_EVT_WRITE_DONE);
+    FILE *pre=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");assert(pre);
+    uint8_t expected[320];
+    for(unsigned unit=0;unit<8;unit++) {
+        for(unsigned part=0;part<3;part++) {
+            assert(fread(packet,1,20,pre)==20);
+            if(part<2)memcpy(expected+unit*40+part*16,packet+4,16);
+            else memcpy(expected+unit*40+32,packet+4,8);
+            notify(a.unicom.fc,packet,20);
+        }
+    }
+    assert(a.unicom.pre_count==8 && !voice_bytes && !voice_starts && !failures);
+    voice_wanted=true;
+    for(unsigned t=0;t<8;t++)rc003_adapter_tick(&a,160+t*5);
+    assert(voice_starts==1 && voice_bytes==320 && !memcmp(expected,recorded,320) && !a.unicom.pre_count);
+    for(unsigned part=0;part<3;part++){assert(fread(packet,1,20,pre)==20);notify(a.unicom.fc,packet,20);}
+    fclose(pre);assert(voice_bytes==360 && voice_starts==1 && !failures);
+    /* Buffered prefix and concurrent live units remain FIFO across ring wrap.
+     * Release drains already admitted units; a later stream cannot inherit any. */
+    a=discovered;voice_wanted=false;commands=failures=voice_starts=voice_bytes=voice_ends=0;
+    notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);event(RBP_GATT_EVT_WRITE_DONE);
+    uint8_t fifo_expected[24*40];
+    pre=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");assert(pre);
+    for(unsigned unit=0;unit<24;unit++) {
+        if(unit==4)voice_wanted=true;
+        if(unit>=4)rc003_adapter_tick(&a,unit*5);
+        for(unsigned part=0;part<3;part++) {
+            assert(fread(packet,1,20,pre)==20);
+            memcpy(fifo_expected+unit*40+part*16,packet+4,part==2?8:16);
+            notify(a.unicom.fc,packet,20);
+        }
+        assert(!failures && a.unicom.pre_count== (unit<4?unit+1:4));
+    }
+    notify(a.unicom.f8,release,20);rc003_adapter_tick(&a,125);
+    assert(last_cmd==0);event(RBP_GATT_EVT_WRITE_DONE);
+    for(unsigned t=130;t<=150;t+=5)rc003_adapter_tick(&a,t);
+    assert(voice_starts==1 && voice_bytes==sizeof fifo_expected && !a.unicom.pre_count);
+    assert(!memcmp(recorded,fifo_expected,sizeof fifo_expected));
+    rc003_adapter_tick(&a,450);assert(voice_ends==1 && ended_reason==RBP_END_NORMAL);
+    /* Continue the fixture with distinct audio in the next physical capture. */
+    voice_starts=voice_bytes=0;start_voice();
+    uint8_t next_expected[40];
+    for(unsigned part=0;part<3;part++) {
+        assert(fread(packet,1,20,pre)==20);
+        memcpy(next_expected+part*16,packet+4,part==2?8:16);
+        notify(a.unicom.fc,packet,20);
+    }
+    fclose(pre);
+    assert(!failures && voice_starts==1 && voice_bytes==40 && !memcmp(recorded,next_expected,40));
+    /* Release before admission cancels captured bytes, not a ghost stream. */
+    a=discovered;voice_wanted=false;commands=voice_starts=voice_bytes=0;
+    notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);event(RBP_GATT_EVT_WRITE_DONE);
+    notify(a.unicom.f8,release,20);voice_wanted=true;rc003_adapter_tick(&a,20);
+    assert(a.unicom.closing && !a.unicom.announced && !voice_starts && !voice_bytes);
+    /* No negotiation: bounded timeout stops, does not silently restart. */
+    a=discovered;voice_wanted=false;commands=0;
+    notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);event(RBP_GATT_EVT_WRITE_DONE);
+    rc003_adapter_tick(&a,251);assert(a.unicom.closing && last_cmd==0 && !a.unicom.announced);
+    /* Explicit disable is different from initial negotiation. */
+    a=discovered;voice_wanted=true;rc003_adapter_tick(&a,0);voice_wanted=false;capture_session=0;
+    notify(a.unicom.f8,press,20);assert(!a.unicom.pending_voice && !a.unicom.active);
+    voice_wanted=true;
+    capture_session=1;
+    /* A USB session replacement or explicit refusal discards all preroll. */
+    for(unsigned session=0;session<3;session+=2) {
+        a=discovered;voice_wanted=false;commands=voice_starts=voice_bytes=voice_ends=0;capture_session=1;
+        notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);event(RBP_GATT_EVT_WRITE_DONE);
+        pre=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");assert(pre);
+        for(unsigned j=0;j<3;j++){assert(fread(packet,1,20,pre)==20);notify(a.unicom.fc,packet,20);}fclose(pre);
+        assert(a.unicom.pre_count==1);
+        capture_session=session;voice_wanted=true;rc003_adapter_tick(&a,20);
+        assert(a.unicom.closing && !a.unicom.pre_count && !voice_starts && !voice_bytes && !voice_ends);
+    }
+    capture_session=0;a=discovered;voice_wanted=false;commands=0;
+    notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);assert(!commands && !a.unicom.active);
+    capture_session=1;
+    /* More than 160ms before negotiation: bounded drop/stop, no prefix clipping. */
+    a=discovered;voice_wanted=false;commands=voice_starts=voice_bytes=0;
+    notify(a.unicom.f8,press,20);rc003_adapter_tick(&a,1);event(RBP_GATT_EVT_WRITE_DONE);
+    pre=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");assert(pre);
+    for(unsigned j=0;j<27;j++){assert(fread(packet,1,20,pre)==20);notify(a.unicom.fc,packet,20);}fclose(pre);
+    assert(a.unicom.closing && !a.unicom.pre_count && !voice_bytes && !voice_starts);
+    voice_wanted=true;rc003_adapter_tick(&a,20);assert(!voice_bytes && !voice_starts);
+    /* Commit after initial pairing makes its discovered database reusable. */
+    a=discovered;a.cache_peer_id=0;a.cache_valid=false;
+    rc003_adapter_commit_bond(&a,88);assert(a.cache_valid && a.cache_peer_id==88);
+    rc003_adapter_detach(&a);rc003_adapter_start_bound(&a,200,89);
+    assert(!a.unicom.selected && !a.cache_valid && !a.restoring);
+    /* Cache validity requires a safe database and is lost on Service Changed. */
+    a=discovered;a.cache_safe=false;unicom_ready(&a);assert(!a.cache_valid);
+    a=discovered;a.service_changed_handle=0x99;rc003_adapter_detach(&a);
+    uint8_t change[]={1,0,0xff,0xff};notify(0x99,change,4);assert(!a.cache_valid);
+    a=discovered;rc003_adapter_detach(&a);rc003_adapter_start_bound(&a,300,77);
+    a.service_changed_handle=0x99;notify(0x99,change,4);assert(!a.cache_valid && a.state==ST_FAILED);
+    /* A lost media fragment invalidates this stream, not the database. */
+    a=discovered;failures=voice_starts=0;start_voice();memset(packet,0,20);packet[2]=1;
+    notify(a.unicom.fc,packet,20);assert(failures==1 && a.cache_valid);
+    assert(strstr(last_failure,"Unicom FC continuity") && strlen(last_failure)<48);
+    rbp_fault_t fc_faults[RBP_FAULT_CAPACITY];uint32_t fault_seq,fault_evicted;
+    uint8_t fc_count=rbp_fault_snapshot(fc_faults,&fault_seq,&fault_evicted);
+    bool found_fc=false;
+    for(unsigned i=0;i<fc_count;i++)if(fc_faults[i].domain==RBP_FAULT_ADAPTER && fc_faults[i].stage==0x91) {
+        assert(fc_faults[i].code==0x00010000u && fc_faults[i].context==0x0000ffffu);
+        found_fc=true;
+    }
+    assert(found_fc);
+    /* A different peer cannot reuse retained Unicom metadata. */
+    a=discovered;rc003_adapter_detach(&a);rc003_adapter_start_bound(&a,400,78);
+    assert(!a.unicom.selected && !a.unicom.hello && !a.unicom.active);
     /* A valid unrelated HID map is rejected despite broad HIDS scan admission. */
     const uint8_t generic[]={5,1,9,6,0xa1,1,0x85,1,5,7,0x19,0,0x29,0xff,
         0x15,0,0x26,0xff,0,0x75,8,0x95,6,0x81,0,0xc0};
@@ -173,3 +338,5 @@ int main(void) {
     puts("unicom adapter: discovery, early/late/missing hello, captured FC, keys, stop and negative cases OK");
     return 0;
 }
+
+uint32_t rbp_server_voice_capture_session(const rbp_server_t *s){(void)s;return capture_session;}

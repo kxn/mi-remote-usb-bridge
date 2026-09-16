@@ -4,6 +4,7 @@
 
 #include "rbp_server.h"
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -13,6 +14,12 @@ extern "C" {
 #define STORE_BASE       0x00007C00u
 #define STORE_SLOT_SIZE  256u
 #define STORE_SLOT_COUNT 2u
+
+#define BOARD_CACHE_BASE 0x00007800u
+#define BOARD_CACHE_MAX 384u
+_Static_assert(BOARD_CACHE_BASE+2u*512u<=STORE_BASE,"GATT cache overlaps bond journal");
+size_t board_cache_load(uint32_t peer,uint8_t *out,size_t cap);
+bool board_cache_save(uint32_t peer,const uint8_t *data,size_t len);
 
 /* The BLE stack SNV occupies 0x7E00..0x8000; our region must stay below. */
 _Static_assert(STORE_BASE + STORE_SLOT_SIZE * STORE_SLOT_COUNT <= 0x7E00,

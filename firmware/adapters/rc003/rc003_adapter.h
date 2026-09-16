@@ -80,11 +80,13 @@ struct rc003_adapter {
 
     /* Only this measured Unicom profile; discovery buffers are shared. */
     struct {
-        bool selected, hello, active, started, closing, previous_valid, down;
+        bool selected, hello, active, started, closing, previous_valid, down, pending_voice, announced;
         uint8_t part, command, in_flight;
         uint16_t fb, fc, f8, fd, fd_cccd, sequence, previous;
         uint32_t command_deadline, refresh_ms, last_audio_ms, close_ms;
         uint8_t body[48];
+        uint8_t preroll[320], pre_head, pre_count; /* 8 complete ICO units / 160ms */
+        uint32_t capture_session, capture_ms;
     } unicom;
     rc003_atvv_t atvv;
     uint32_t now_ms;
@@ -115,6 +117,11 @@ void rc003_adapter_tick(rc003_adapter_t *a, uint32_t now_ms);
 
 /* link is gone: reset state */
 void rc003_adapter_detach(rc003_adapter_t *a);
+/* Called only after this link's new bond has been durably committed. */
+void rc003_adapter_commit_bond(rc003_adapter_t *a,uint32_t peer_id);
+
+size_t rc003_adapter_cache_export(const rc003_adapter_t *a,uint8_t *data,size_t cap);
+bool rc003_adapter_cache_import(rc003_adapter_t *a,uint32_t peer,const uint8_t *data,size_t len);
 
 /* best-effort: send ATVV MIC_CLOSE for the active stream; false if the
  * ATVV channel is not up (client then falls back to the local timeout) */

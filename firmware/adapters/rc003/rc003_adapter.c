@@ -62,7 +62,15 @@ static void fail_init(rc003_adapter_t *a,const char *cause,bool invalidate_cache
     }
     if(timed_out)message[sizeof message-2]='1';
     a->state=ST_FAILED;
-    rbp_server_adapter_failed(a->server,message);
+    if(a->failed_stage==ST_DONE) {
+        /* Product link messages allow 47 bytes plus NUL. Keep the actual
+         * runtime cause, as well as the original ATT error, in release builds. */
+        char runtime[48]="runtime E=00: ";
+        runtime[10]="0123456789ABCDEF"[a->last_att_error>>4];
+        runtime[11]="0123456789ABCDEF"[a->last_att_error&15];
+        strncat(runtime,cause,sizeof runtime-strlen(runtime)-1);
+        rbp_server_adapter_failed(a->server,runtime);
+    } else rbp_server_adapter_failed(a->server,message);
 }
 
 /* Transport loss closes this attempt, not the bonded attribute database. */
@@ -154,6 +162,7 @@ static void recompute_keys(rc003_adapter_t *a)
 
 #include "unicom_profile.inc"
 #include "unicom_runtime.inc"
+#include "cache.inc"
 
 /* ---------------- sink callbacks for the ATVV engine ---------------- */
 
@@ -292,8 +301,16 @@ void rc003_adapter_start_bound(rc003_adapter_t *a, uint32_t now_ms, uint32_t pee
     if(peer_id && a->cache_valid && a->cache_peer_id==peer_id) {
         DT(DT_HID,DT_INFO,13,peer_id,a->service_changed_handle,a->char_count,now_ms);
         a->restoring=true;a->now_ms=now_ms;a->init_deadline_ms=now_ms+INIT_TOTAL_TIMEOUT_MS;
-        rbp_server_set_profile(a->server,a->voice_key_verified?&RBP_PROFILE_RC003_VOICE:&RBP_PROFILE_RC003);
-        start_op(a,ST_MTU,now_ms);begin_next(a,now_ms);return;
+        rbp_server_set_profile(a->server,a->unicom.selected?&RBP_PROFILE_UNICOM:
+            a->voice_key_verified?&RBP_PROFILE_RC003_VOICE:&RBP_PROFILE_RC003);
+        /* Fresh ATT bearers default to 23. A cached Unicom profile only uses
+         * 20-byte notifications; requesting that same MTU adds a round trip. */
+        uint8_t first=ST_MTU;
+#if RBP_ATT_MTU == 23
+        if(a->unicom.selected)first=a->service_changed_cccd?ST_SUB_CHANGED:
+            a->protocol_mode_handle?ST_READ_PROTOCOL_MODE:ST_UNICOM_SUB;
+#endif
+        start_op(a,first,now_ms);begin_next(a,now_ms);return;
     }
     const rbp_gatt_client_t *gatt=a->gatt;void *user=a->gatt_user;rbp_server_t *server=a->server;
     rc003_adapter_init(a,gatt,user,server);a->now_ms=now_ms;
@@ -301,6 +318,13 @@ void rc003_adapter_start_bound(rc003_adapter_t *a, uint32_t now_ms, uint32_t pee
     a->init_deadline_ms=now_ms+INIT_TOTAL_TIMEOUT_MS;
     rbp_server_set_profile(server,&RBP_PROFILE_RC003);
     start_op(a,ST_MTU,now_ms);begin_next(a,now_ms);
+}
+
+void rc003_adapter_commit_bond(rc003_adapter_t *a,uint32_t peer_id)
+{
+    if(!peer_id || !a->ready)return;
+    a->cache_peer_id=peer_id;
+    a->cache_valid=a->cache_safe && a->voice_ready;
 }
 
 void rc003_adapter_detach(rc003_adapter_t *a)
@@ -316,6 +340,12 @@ void rc003_adapter_detach(rc003_adapter_t *a)
         a->state=ST_IDLE;a->retry=0;a->ready=false;a->voice_ready=false;
         a->restoring=false;a->pending_search=false;a->caps_requested=false;a->voice_down_seen=false;
         a->pressed_bits=0;memset(a->keys_by_report,0,sizeof a->keys_by_report);
+        if(a->unicom.selected) {
+            uint16_t handles[]={a->unicom.fb,a->unicom.fc,a->unicom.f8,a->unicom.fd,a->unicom.fd_cccd};
+            memset(&a->unicom,0,sizeof a->unicom);a->unicom.selected=true;
+            a->unicom.fb=handles[0];a->unicom.fc=handles[1];a->unicom.f8=handles[2];
+            a->unicom.fd=handles[3];a->unicom.fd_cccd=handles[4];
+        }
         return;
     }
     const rbp_gatt_client_t *gatt=a->gatt;void *user=a->gatt_user;rbp_server_t *server=a->server;
@@ -653,7 +683,7 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
     case ST_MTU:
         if (evt->type == RBP_GATT_EVT_MTU_UPDATED || evt->type == RBP_GATT_EVT_PROC_ERROR) {
             start_op(a, a->restoring?(a->service_changed_cccd?ST_SUB_CHANGED:
-                a->protocol_mode_handle?ST_READ_PROTOCOL_MODE:(a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL)):ST_FIND_GATT_SVC, a->now_ms);
+                a->protocol_mode_handle?ST_READ_PROTOCOL_MODE:(a->unicom.selected?ST_UNICOM_SUB:a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL)):ST_FIND_GATT_SVC, a->now_ms);
             begin_next(a, a->now_ms);
         }
         break;
@@ -676,7 +706,7 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
                (a->state==ST_VERIFY_PROTOCOL_MODE && evt->value[0]!=1)) {
                 fail_initialization(a,"protocol mode value");return;
             }
-            start_op(a,evt->value[0]==1?(a->restoring?(a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL):ST_FIND_MAP_CHAR):ST_SET_PROTOCOL_MODE,a->now_ms);
+            start_op(a,evt->value[0]==1?(a->restoring?(a->unicom.selected?ST_UNICOM_SUB:a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL):ST_FIND_MAP_CHAR):ST_SET_PROTOCOL_MODE,a->now_ms);
             begin_next(a,a->now_ms);
         } else if(evt->type==RBP_GATT_EVT_PROC_ERROR)handle_op_failure(a);
         break;
@@ -708,7 +738,7 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
         } else if(evt->type==RBP_GATT_EVT_PROC_ERROR)handle_op_failure(a);
         break;
     case ST_SUB_CHANGED:
-        if(evt->type==RBP_GATT_EVT_WRITE_DONE) {a->cache_safe=true;start_op(a,a->restoring?(a->protocol_mode_handle?ST_READ_PROTOCOL_MODE:(a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL)):ST_FIND_HID_SVC,a->now_ms);begin_next(a,a->now_ms);}
+        if(evt->type==RBP_GATT_EVT_WRITE_DONE) {a->cache_safe=true;start_op(a,a->restoring?(a->protocol_mode_handle?ST_READ_PROTOCOL_MODE:(a->unicom.selected?ST_UNICOM_SUB:a->bat_value_handle?ST_READ_BATTERY:ST_SUBSCRIBE_CTL)):ST_FIND_HID_SVC,a->now_ms);begin_next(a,a->now_ms);}
         else if(evt->type==RBP_GATT_EVT_PROC_ERROR)handle_op_failure(a);
         break;
     case ST_FIND_HID_SVC:

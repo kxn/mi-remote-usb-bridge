@@ -19,6 +19,7 @@ static unsigned scan_reports;static rbp_candidate_t scan_last;
 static uint8_t address_status, auto_sync_rl;
 static tmos_event_hdr_t rx_message;
 static char last_link_message[80];
+static unsigned cache_saves;static size_t cache_saved_len;
 bool board_addr_load(uint8_t *a, uint8_t *t) {
   memcpy(a, record.publicAddr, 6);
   *t = record.publicAddrType;
@@ -148,6 +149,7 @@ void rc003_adapter_detach(rc003_adapter_t *a) {
   a->ready = false;
   detached++;
 }
+void rc003_adapter_commit_bond(rc003_adapter_t *a,uint32_t peer_id) {(void)a;assert(peer_id==7);}
 void rc003_adapter_start_bound(rc003_adapter_t *a, uint32_t n, uint32_t peer_id) {
   (void)peer_id;
   (void)a;
@@ -227,7 +229,7 @@ static void reset(void) {
   g_srv = NULL;
   conn_handle = GAP_CONNHANDLE_INIT;
   wc_state = WC_IDLE;
-  backoff = next_link = 0;
+  backoff = next_link = early_retries = 0;
   radio_faulted = security_blocked = passkey_pending = false;
   radio_ready = true;
   wch_now_ms = 100;
@@ -276,7 +278,64 @@ static void match(void) {
   resolve_advertisement(record.publicAddr, record.publicAddrType,
                         GAP_ADRPT_ADV_IND);
 }
+static void early_retry_tests(void) {
+  /* Reproduce the captured 0x08 loss -> scan -> 0x3e sequence. */
+  reset();auto_connect=true;disconnected();
+  assert(backoff==1 && reconnect_at==wch_now_ms+1000);
+  wch_now_ms=reconnect_at;poll();
+  for(unsigned attempt=0;attempt<3;attempt++) {
+    assert(wc_state==WC_RESOLVE);
+    match();scan_done();link_event(SUCCESS,1);
+    wch_now_ms+=152;
+    gapRoleEvent_t e={0};e.gap.opcode=GAP_LINK_TERMINATED_EVENT;
+    e.linkTerminate.connectionHandle=1;e.linkTerminate.reason=WC_ESTABLISH_FAILED;
+    unsigned before=scans;wc_event_cb(&e);
+    assert(wc_state==WC_IDLE && scans==before && !erased && !security_blocked);
+    uint32_t due=reconnect_at;
+    wc_event_cb(&e);assert(reconnect_at==due); /* duplicate cannot spend budget */
+    if(attempt<2) {
+      assert(due==wch_now_ms && early_retries==attempt+1 && backoff==1);
+    } else {
+      assert(due==wch_now_ms+2000 && early_retries==2 && backoff==2);
+      poll();assert(scans==before);wch_now_ms=due;
+    }
+    poll();assert(scans==before+1);
+  }
+  /* READY, not an SDK link event, replenishes the bounded retry allowance. */
+  match();scan_done();link_event(SUCCESS,1);encrypted=true;adapter.ready=true;
+  poll();assert(early_retries==0 && backoff==0);
+
+  /* A terminal failed-completion path has no link handle to terminate. */
+  reset();auto_connect=true;rb_connect_peer(NULL);match();scan_done();
+  link_event(WC_ESTABLISH_FAILED,1);
+  assert(wc_state==WC_IDLE && early_retries==1 && reconnect_at==wch_now_ms);
+  auto_connect=false;poll();assert(scans==1); /* user disabled reconnect */
+  auto_connect=true;poll();assert(scans==2);
+
+  /* Cancellation, pairing, authentication errors, and an already running
+   * adapter must never receive the early-establishment fast retry. */
+  for(unsigned mode=0;mode<5;mode++) {
+    reset();auto_connect=true;rb_connect_peer(NULL);match();scan_done();
+    link_event(SUCCESS,1);
+    if(mode==0)wc_state=WC_DISCONNECTING;
+    if(mode==1)pair_pending=true;
+    if(mode==2)security_blocked=true;
+    if(mode==3)adapter_started=true;
+    gapRoleEvent_t e={0};e.gap.opcode=GAP_LINK_TERMINATED_EVENT;
+    e.linkTerminate.connectionHandle=1;
+    e.linkTerminate.reason=mode==4?8:WC_ESTABLISH_FAILED;
+    wc_event_cb(&e);assert(early_retries==0 && reconnect_at!=wch_now_ms);
+  }
+  reset();auto_connect=true;rb_connect_peer(NULL);match();scan_done();
+  rb_disconnect(NULL);link_event(WC_ESTABLISH_FAILED,1);
+  assert(early_retries==0 && reconnect_at!=wch_now_ms);
+  /* A timer wrap does not change the immediate scheduling contract. */
+  reset();auto_connect=true;rb_connect_peer(NULL);match();scan_done();
+  wch_now_ms=UINT32_MAX;link_event(WC_ESTABLISH_FAILED,1);
+  wch_now_ms=0;poll();assert(scans==2);
+}
 int main(void) {
+  early_retry_tests();
   reset();wc_state=WC_SCAN;candidate_count=0;scan_reports=0;
   uint8_t adv[]={3,3,0x12,0x18};gapDeviceInfoEvent_t observed={0};
   observed.pEvtData=adv;observed.dataLen=sizeof adv;observed.rssi=-50;
@@ -635,6 +694,35 @@ int main(void) {
   assert(!radio_ready && radio_faulted && address_configured == 1);
   rb_connect_peer(NULL);
   assert(!scans && !initiations);
+  /* SDK update messages do not initialize hdr.status. Poison it to prove
+   * diagnostics use only event-specific status, with current-handle gating. */
+  reset();wc_state=WC_CONNECTED;conn_handle=1;
+  rbp_fault_t fs[RBP_FAULT_CAPACITY];uint32_t seq_before,seq_after,evicted;
+  rbp_fault_snapshot(fs,&seq_before,&evicted);
+  gapRoleEvent_t update={0};update.gap.opcode=GAP_PHY_UPDATE_EVENT;
+  update.gap.hdr.status=0xeb;update.linkPhyUpdate.connectionHandle=1;
+  wc_event_cb(&update);rbp_fault_snapshot(fs,&seq_after,&evicted);assert(seq_after==seq_before);
+  update.linkPhyUpdate.status=0x1a;update.linkPhyUpdate.connTxPHYS=1;update.linkPhyUpdate.connRxPHYS=2;
+  wc_event_cb(&update);unsigned nf=rbp_fault_snapshot(fs,&seq_after,&evicted);
+  assert(seq_after==seq_before+1 && fs[nf-1].stage==67 && fs[nf-1].code==0x1a && fs[nf-1].context==0x201);
+  update.linkPhyUpdate.connectionHandle=2;wc_event_cb(&update);
+  rbp_fault_snapshot(fs,&seq_before,&evicted);assert(seq_before==seq_after);
+  memset(&update,0,sizeof update);update.gap.opcode=GAP_LINK_PARAM_UPDATE_EVENT;
+  update.gap.hdr.status=0x31;update.linkUpdate.connectionHandle=1;
+  wc_event_cb(&update);rbp_fault_snapshot(fs,&seq_after,&evicted);assert(seq_after==seq_before);
+  update.linkUpdate.status=1;wc_event_cb(&update);nf=rbp_fault_snapshot(fs,&seq_after,&evicted);
+  assert(seq_after==seq_before+1 && fs[nf-1].stage==66 && fs[nf-1].code==1);
+  /* Invalidated metadata is tombstoned before detach destroys its peer ID. */
+  reset();adapter.cache_peer_id=7;adapter.cache_valid=false;cache_saves=0;
+  wc_state=WC_CONNECTED;conn_handle=1;rb_disconnect(NULL);
+  assert(cache_saves==1 && cache_saved_len==0 && detached==1);
+  /* READY saves once, waits through a voice stream, and never writes during it. */
+  reset();adapter.cache_peer_id=7;adapter.cache_valid=adapter.ready=true;
+  wc_state=WC_CONNECTED;conn_handle=1;adapter_started=true;cache_synced=false;cache_saves=0;
+  pair_pending=false;recovering=false;adapter.unicom.active=true;
+  poll();assert(cache_saves==0);
+  adapter.unicom.active=false;poll();assert(cache_saves==1 && cache_saved_len==1);
+  poll();assert(cache_saves==1);
   puts("Central: async ownership, takeover, cancellation "
        "races/rejections/deadlines, stale handles, security, privacy, "
        "persistence, startup and immediate RX release passed");
@@ -687,3 +775,8 @@ void wch_gatt_on_msg(void *p) {
   abort();
 }
 void wch_gatt_set_adapter(rc003_adapter_t *a) { (void)a; }
+
+size_t board_cache_load(uint32_t p,uint8_t *d,size_t n){(void)p;(void)d;(void)n;return 0;}
+bool board_cache_save(uint32_t p,const uint8_t *d,size_t n){assert(p==7);(void)d;cache_saves++;cache_saved_len=n;return true;}
+size_t rc003_adapter_cache_export(const rc003_adapter_t *a,uint8_t *d,size_t n){assert(n);d[0]=1;return a->cache_valid?1:0;}
+bool rc003_adapter_cache_import(rc003_adapter_t *a,uint32_t p,const uint8_t *d,size_t n){(void)a;(void)p;(void)d;(void)n;return false;}

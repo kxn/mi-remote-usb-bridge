@@ -370,6 +370,18 @@ int main(void){
         uint8_t stop[]={0,0};notify(a.atvv_ctl_handle,stop,2);
         assert(voice_ends==1&&!a.atvv.stream_active&&a.cache_valid);
     }
+    /* Persisted Xiaomi metadata reconstructs the parser, not a runtime dump. */
+    a=discovered;uint8_t persisted[384];
+    size_t persisted_len=rc003_adapter_cache_export(&a,persisted,sizeof persisted);
+    assert(persisted_len);
+    rc003_adapter_detach(&a);a.cache_valid=false;
+    assert(rc003_adapter_cache_import(&a,7,persisted,persisted_len));
+    assert(a.rc003_boot_layout && a.atvv.profile_init_without_sync && !a.atvv.decoder_ready && !a.ready);
+    rc003_adapter_start_bound(&a,1900,7);
+    event(RBP_GATT_EVT_MTU_UPDATED);mode=1;value(&mode,1);value(&level,1);
+    event(RBP_GATT_EVT_WRITE_DONE);event(RBP_GATT_EVT_WRITE_DONE);
+    uint8_t restored_caps[]={11,1,0,3,3,0,120,0,0};
+    notify(a.atvv_ctl_handle,restored_caps,sizeof restored_caps);assert(a.ready && a.cache_valid);
     /* Another bond cannot inherit this verified-map exception. */
     rc003_adapter_detach(&a);rc003_adapter_start_bound(&a,2000,8);
     assert(!a.atvv.profile_init_without_sync&&!a.rc003_boot_layout);
@@ -399,3 +411,5 @@ int main(void){
 }
 
 void rbp_server_set_voice_caps(rbp_server_t*s,const rbp_audio_caps_t*c){(void)s;(void)c;}
+
+uint32_t rbp_server_voice_capture_session(const rbp_server_t *s){(void)s;return 1;}

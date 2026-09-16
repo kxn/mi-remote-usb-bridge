@@ -397,6 +397,7 @@ static void test_find_pair_keys(void)
     rbp_server_t *s = server_new();
     client_reset();
     reset_frames();
+    CHECK(rbp_server_voice_capture_session(s)==0);
     tick(s, 10);
     client_hello(s, 11);
     tick(s, 12);
@@ -785,6 +786,7 @@ static void test_voice_stop_and_disable(void)
     rbp_server_on_voice_state(s, RBP_VOICE_READY, RBP_VI_HTT, 16000);
     rbp_server_on_link(s, RBP_LINK_READY, 900, 40);
     tick(s, 41);
+    CHECK(rbp_server_voice_capture_session(s)==g_session && !rbp_server_voice_wanted(s));
 
     rbp_tlv_writer_t w;
     rbp_tlv_writer_init(&w);
@@ -874,6 +876,12 @@ static void test_voice_stop_and_disable(void)
         CHECK(r == RBP_END_CONSUMER_DISABLED);
     }
 
+    CHECK(rbp_server_voice_capture_session(s)==0);
+    uint32_t old_session=g_session;
+    rbp_server_on_usb_gone(s,97);CHECK(rbp_server_voice_capture_session(s)==0);
+    client_reset();client_hello(s,100);tick(s,101);
+    rbp_server_get_info(s,&info);
+    CHECK(rbp_server_voice_capture_session(s)==info.session_id && info.session_id!=old_session);
     server_free();
 }
 
@@ -1054,6 +1062,7 @@ static void test_forget_flow(void)
     frame_t *resp = find_frame(RBP_KIND_RESPONSE, RBP_OP_FORGET_PEER);
     CHECK(resp != NULL && resp->hdr.status == RBP_STATUS_ACCEPTED);
     CHECK(radio.forget_calls == 1);
+    CHECK(stored_peer.auto_reconnect && !rbp_server_should_reconnect(s));
     rbp_server_on_forget_done(s, RBP_STATUS_OK, false);
     tick(s, 22);
     frame_t *op = find_frame(RBP_KIND_EVENT, RBP_OP_OPERATION_EV);
@@ -1072,6 +1081,31 @@ static void test_forget_flow(void)
     CHECK(pid == 0);
     rbp_server_get_info(s, &info);
     CHECK(info.link_state == RBP_LINK_UNBOUND);
+    CHECK(!rbp_server_should_reconnect(s));
+
+    /* A new committed bond owns a new reconnect intent. Forget's pause
+     * belongs to the old bond and must not suppress wakeup of this one. */
+    rec.peer_id=0x1235;
+    rbp_server_on_pair_done(s,RBP_STATUS_OK,true,&rec,901);
+    rbp_server_on_link(s,RBP_LINK_DISCONNECTED,0,27);
+    CHECK(stored_peer.auto_reconnect);
+    CHECK(rbp_server_should_reconnect(s));
+
+    /* Explicit disconnect remains paused; failed pairing cannot undo it.
+     * SET_RECONNECT(true) remains an explicit resume even if already saved. */
+    client_request(s,28,RBP_OP_DISCONNECT,NULL,0);tick(s,29);
+    CHECK(!rbp_server_should_reconnect(s));
+    rbp_server_on_pair_done(s,RBP_STATUS_PAIRING_FAILED,false,NULL,0);
+    CHECK(!rbp_server_should_reconnect(s));
+    store_fail=true;
+    rbp_server_on_pair_done(s,RBP_STATUS_OK,true,&rec,902);
+    CHECK(!rbp_server_should_reconnect(s));
+    store_fail=false;
+    rbp_tlv_writer_init(&w);rbp_tlv_put_u32(&w,1,rec.peer_id);rbp_tlv_put_bool(&w,2,true);
+    client_request(s,30,RBP_OP_SET_RECONNECT,w.buf,w.len);tick(s,31);
+    CHECK(rbp_server_should_reconnect(s));
+    rbp_server_on_usb_gone(s,32);
+    CHECK(rbp_server_should_reconnect(s));
 
     server_free();
 }

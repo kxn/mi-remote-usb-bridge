@@ -22,7 +22,10 @@ enum { WC_IDLE, WC_SCAN, WC_CONNECTING, WC_CONNECTED, WC_RESOLVE,
        WC_SCAN_STOPPING, WC_CONNECT_CANCEL, WC_DISCONNECTING };
 enum { NEXT_NONE, NEXT_PAIR, NEXT_RECONNECT };
 #define CANCEL_TIMEOUT_MS 5000u
-static uint8_t wc_state,backoff;
+static uint8_t wc_state,backoff,early_retries;
+/* Core Vol 1 Part F 2.59: controller could not establish the LL connection. */
+#define WC_ESTABLISH_FAILED 0x3eu
+#define WC_EARLY_RETRY_LIMIT 2u
 static uint8_t next_link;
 static bool radio_faulted, security_blocked, passkey_pending;
 /* Eight task-context flags share a byte; no ISR accesses these fields. */
@@ -79,6 +82,7 @@ static void reconnect_schedule(void) {
     backoff=step<2?step+1:2;
 }
 static void rb_disconnect(void *user);
+static void sync_gatt_cache(void);
 static void rb_connect_peer(void *user);
 static void set_state(uint8_t state,uint32_t timeout) {
     DT(DT_BLE,DT_INFO,8,wc_state,state,next_link,timeout);
@@ -89,15 +93,24 @@ static void radio_fault(const char *why,uint8_t status) {
     DT(DT_BLE,DT_ERROR,9,wc_state,status,conn_handle,next_link);
     next_link=NEXT_NONE;
     if(radio_faulted)return;
-    radio_faulted=true;wch_gatt_quiesce();rc003_adapter_detach(g_adapter);
+    radio_faulted=true;wch_gatt_quiesce();sync_gatt_cache();rc003_adapter_detach(g_adapter);
     rbp_server_on_link_message(g_srv,why);
     rbp_server_on_link(g_srv,RBP_LINK_ERROR,0,wch_now_ms);
 }
-static void disconnected(void) {
+static void disconnected_retry(bool early) {
     rbp_server_on_link(g_srv,radio_faulted||security_blocked?RBP_LINK_ERROR:
         board_storage_state()==1?RBP_LINK_DISCONNECTED:RBP_LINK_UNBOUND,0,wch_now_ms);
-    reconnect_schedule();
+    /* Only terminal SDK events may release radio ownership. Resume scanning
+     * from poll(), never recurse into the SDK callback or reuse a stale RPA.
+     * Do not spend the short directed-advertising window in generic backoff.
+     * Bound repeated failures; successful READY replenishes this allowance. */
+    if(early && !radio_faulted && !security_blocked && !recovering &&
+       board_storage_state()==1 && early_retries<WC_EARLY_RETRY_LIMIT) {
+        ++early_retries;reconnect_at=wch_now_ms;
+    } else reconnect_schedule();
+    DT(DT_BLE,DT_INFO,20,early,early_retries,reconnect_at-wch_now_ms,backoff);
 }
+static void disconnected(void) {disconnected_retry(false);}
 static void stop_scan(void) {
     if(wc_state==WC_SCAN_STOPPING)return;
     set_state(WC_SCAN_STOPPING,CANCEL_TIMEOUT_MS);
@@ -161,7 +174,8 @@ static void finish_pair(void) {
     pair_pending=false;
     rbp_server_on_pair_done(g_srv,RBP_STATUS_OK,true,&rec,0);
     DT(DT_STORE,DT_INFO,8,board_storage_state(),rec.peer_id,0,0);
-    if(board_storage_state()!=1) {
+    if(board_storage_state()==1)rc003_adapter_commit_bond(g_adapter,rec.peer_id);
+    else {
         recovering=true;delete_report=false;erase_requested=false;recovery_deadline=0;
         rb_disconnect(NULL);
     }
@@ -251,12 +265,29 @@ static void on_device(gapDeviceInfoEvent_t *info) {
     if(!c.name_len)c.name[0]=0;
     rbp_server_on_scan_candidate(g_srv,&c);
 }
+/* Persist only database metadata, never a voice/ATT transaction. The optional
+ * record cannot change SDK keys or the bond journal. Save once per link. */
+static bool cache_synced;
+static uint32_t link_established_ms;
+static void sync_gatt_cache(void) {
+    if(board_storage_state()!=1 || !g_adapter->cache_peer_id)return;
+    uint8_t data[BOARD_CACHE_MAX];
+    size_t n=rc003_adapter_cache_export(g_adapter,data,sizeof data);
+    if(g_adapter->cache_valid && !n)return;
+    if(!board_cache_save(g_adapter->cache_peer_id,data,n))
+        rbp_server_on_link_message(g_srv,"GATT cache storage failed");
+}
 static void wc_rssi_cb(uint16_t h,int8_t r){(void)h;(void)r;}
 static void wc_data_len_cb(uint16_t h,uint16_t t,uint16_t r){(void)h;(void)t;(void)r;DT(DT_BLE,DT_INFO,5,h,t,r,0);}
 static void wc_event_cb(gapRoleEvent_t *e) {
-    DT(DT_BLE,DT_INFO,1,e->gap.opcode,e->gap.hdr.status,wc_state,0);
-    if(e->gap.hdr.status!=SUCCESS && e->gap.hdr.status!=bleGAPUserCanceled)
-        rbp_fault_record(RBP_FAULT_GAP,64,e->gap.hdr.status,e->gap.opcode);
+    /* SDK gapSendPhyUpdateEvent leaves hdr.status unwritten. Only events
+     * whose contract uses that header may read it; update events own status. */
+    bool header_status=e->gap.opcode==GAP_DEVICE_INIT_DONE_EVENT ||
+        e->gap.opcode==GAP_LINK_ESTABLISHED_EVENT || e->gap.opcode==GAP_DEVICE_DISCOVERY_EVENT;
+    uint8_t status=header_status?e->gap.hdr.status:SUCCESS;
+    DT(DT_BLE,DT_INFO,1,e->gap.opcode,status,wc_state,0);
+    if(status!=SUCCESS && status!=bleGAPUserCanceled)
+        rbp_fault_record(RBP_FAULT_GAP,64,status,e->gap.opcode);
     switch(e->gap.opcode) {
     case GAP_DEVICE_INIT_DONE_EVENT:
         radio_ready=e->gap.hdr.status==SUCCESS;
@@ -277,7 +308,7 @@ static void wc_event_cb(gapRoleEvent_t *e) {
         if(e->gap.hdr.status==SUCCESS) {
             if(conn_handle!=GAP_CONNHANDLE_INIT)return; /* duplicate cannot replace owner */
             bool wanted=wc_state==WC_CONNECTING && !recovering && !radio_faulted && !security_blocked;
-            conn_handle=e->linkCmpl.connectionHandle;
+            conn_handle=e->linkCmpl.connectionHandle;link_established_ms=wch_now_ms;
             /* Product pairing has its own 60s total deadline. Do not cut a
              * 30s passkey prompt short with the old 20s connection timer. */
             set_state(WC_CONNECTED,pair_pending?60000:30000);adapter_started=false;
@@ -292,21 +323,41 @@ static void wc_event_cb(gapRoleEvent_t *e) {
             }
             rbp_server_on_link(g_srv,RBP_LINK_INITIALIZING,0,wch_now_ms);
         } else if(wc_state==WC_CONNECTING || wc_state==WC_CONNECT_CANCEL) {
-            set_state(WC_IDLE,0);fail_pair_sdk("connection completion failed",e->gap.hdr.status);disconnected();
+            bool early=wc_state==WC_CONNECTING && !pair_pending &&
+                e->gap.hdr.status==WC_ESTABLISH_FAILED;
+            set_state(WC_IDLE,0);fail_pair_sdk("connection completion failed",e->gap.hdr.status);
+            /* Completion failures have no later termination event. */
+            rbp_fault_record(RBP_FAULT_GAP,68,e->gap.hdr.status,0);
+            disconnected_retry(early);
         }
         break;
     case GAP_LINK_TERMINATED_EVENT:
         if(conn_handle==GAP_CONNHANDLE_INIT || e->linkTerminate.connectionHandle!=conn_handle)return;
         DT(DT_BLE,DT_INFO,3,e->linkTerminate.reason,conn_handle,0,0);
-        rbp_fault_record(RBP_FAULT_GAP,65,e->linkTerminate.reason,0);
+        /* Low 30 bits: link age in ms; bit 31: GATT started; bit 30: READY.
+         * Distinguish early LL establishment loss from discovery/runtime loss. */
+        uint32_t age=wch_now_ms-link_established_ms;if(age>0x3fffffffu)age=0x3fffffffu;
+        rbp_fault_record(RBP_FAULT_GAP,65,e->linkTerminate.reason,
+            age|(adapter_started?0x80000000u:0)|(g_adapter->ready?0x40000000u:0));
+        bool early=wc_state==WC_CONNECTED && !pair_pending && !adapter_started &&
+            e->linkTerminate.reason==WC_ESTABLISH_FAILED;
         conn_handle=GAP_CONNHANDLE_INIT;wch_gatt_set_conn(conn_handle);set_state(WC_IDLE,0);adapter_started=false;passkey_pending=false;
-        rc003_adapter_detach(g_adapter);fail_pair(RBP_STATUS_LINK_LOST);
-        disconnected();break;
+        sync_gatt_cache();rc003_adapter_detach(g_adapter);fail_pair(RBP_STATUS_LINK_LOST);
+        disconnected_retry(early);break;
     case GAP_LINK_PARAM_UPDATE_EVENT:
+        if(conn_handle==GAP_CONNHANDLE_INIT || e->linkUpdate.connectionHandle!=conn_handle)return;
         if(e->linkUpdate.status!=SUCCESS)rbp_fault_record(RBP_FAULT_GAP,66,e->linkUpdate.status,0);
         DT(DT_BLE,DT_INFO,17,e->linkUpdate.connectionHandle,e->linkUpdate.connInterval,
            e->linkUpdate.connLatency,e->linkUpdate.connTimeout);
-        DT(DT_BLE,DT_INFO,18,e->gap.hdr.status,e->linkUpdate.status,0,0);
+        DT(DT_BLE,DT_INFO,18,e->linkUpdate.status,0,0,0);
+        break;
+    case GAP_PHY_UPDATE_EVENT:
+        if(conn_handle==GAP_CONNHANDLE_INIT || e->linkPhyUpdate.connectionHandle!=conn_handle)return;
+        if(e->linkPhyUpdate.status!=SUCCESS)
+            rbp_fault_record(RBP_FAULT_GAP,67,e->linkPhyUpdate.status,
+                (uint32_t)e->linkPhyUpdate.connTxPHYS|((uint32_t)e->linkPhyUpdate.connRxPHYS<<8));
+        DT(DT_BLE,DT_INFO,19,e->linkPhyUpdate.connectionHandle,e->linkPhyUpdate.status,
+           e->linkPhyUpdate.connTxPHYS,e->linkPhyUpdate.connRxPHYS);
         break;
     case GAP_DEVICE_INFO_EVENT:on_device(&e->deviceInfo);break;
     case GAP_DIRECT_DEVICE_INFO_EVENT:
@@ -425,7 +476,7 @@ static void rb_disconnect(void *u) {
         if(status!=SUCCESS)rbp_server_on_link_message(g_srv,"initiation cancel rejected; awaiting terminal event");
     }
     else if(wc_state==WC_CONNECTED) {
-        wch_gatt_quiesce();rc003_adapter_detach(g_adapter);set_state(WC_DISCONNECTING,CANCEL_TIMEOUT_MS);
+        wch_gatt_quiesce();sync_gatt_cache();rc003_adapter_detach(g_adapter);set_state(WC_DISCONNECTING,CANCEL_TIMEOUT_MS);
         uint8_t status=gap_result(9,GAPRole_TerminateLink(conn_handle),0);
         DT(DT_BLE,DT_INFO,11,5,status,conn_handle,0);
         if(status!=SUCCESS)rbp_server_on_link_message(g_srv,"disconnect rejected; awaiting terminal event");
@@ -476,7 +527,7 @@ const rbp_radio_backend_t *wch_central_backend(void){return &backend;}
 static void start_encrypted_adapter(void) {
     if(wc_state==WC_CONNECTED && !adapter_started && !radio_faulted && !security_blocked &&
        linkDB_State(conn_handle,LINK_ENCRYPTED)) {
-        adapter_started=true;
+        adapter_started=true;cache_synced=false;
         rc003_adapter_start_bound(g_adapter,wch_now_ms,pair_pending?0:board_peer_counter());
     }
 }
@@ -520,7 +571,12 @@ static void poll(void) {
             if(!pair_pending)rbp_server_on_link_message(g_srv,"bond encryption timed out; retrying after disconnect");
             fail_pair(RBP_STATUS_TIMEOUT);rb_disconnect(NULL);
         }
-        if(g_adapter->ready)backoff=0;
+        if(g_adapter->ready) {
+            backoff=0;early_retries=0;
+            if(!cache_synced && !pair_pending && !g_adapter->unicom.active && !g_adapter->atvv.stream_active && !g_adapter->atvv.open_pending) {
+                cache_synced=true;sync_gatt_cache();
+            }
+        }
     } else if(wc_state==WC_SCAN && (int32_t)(wch_now_ms-deadline)>=0) {
         rbp_server_on_scan_done(g_srv,RBP_FIND_DONE_EXPIRED,wch_now_ms);rb_disconnect(NULL);
     } else if(wc_state==WC_CONNECTING && (int32_t)(wch_now_ms-deadline)>=0) {
@@ -567,7 +623,12 @@ static uint16_t process(uint8_t task,uint16_t events) {
     if(events&WC_POLL_EVT) {poll();tmos_start_task(task,WC_POLL_EVT,32);events^=WC_POLL_EVT;}return events;
 }
 void wch_central_init(rbp_server_t *srv,rc003_adapter_t *adapter) {
-    g_srv=srv;g_adapter=adapter;wch_gatt_set_adapter(adapter);wch_central_task_id=TMOS_ProcessEventRegister(process);
+    g_srv=srv;g_adapter=adapter;
+    uint8_t cache[BOARD_CACHE_MAX];uint32_t peer=board_peer_counter();
+    size_t cache_len=board_cache_load(peer,cache,sizeof cache);
+    if(cache_len && !rc003_adapter_cache_import(adapter,peer,cache,cache_len))
+        (void)board_cache_save(peer,NULL,0);
+    wch_gatt_set_adapter(adapter);wch_central_task_id=TMOS_ProcessEventRegister(process);
     deadline=wch_now_ms+CANCEL_TIMEOUT_MS;
     if(wch_central_task_id==INVALID_TASK_ID)radio_fault("TMOS task registration failed",FAILURE);
     const uint16_t params[][2]={{TGAP_CONN_EST_INT_MIN,12},{TGAP_CONN_EST_INT_MAX,24},

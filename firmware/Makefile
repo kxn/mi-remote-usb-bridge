@@ -20,7 +20,7 @@ SDK_RX_PROBE ?= 0
 HOST_VOICE_START ?= 0
 ATT_MTU ?= 23
 .DEFAULT_GOAL := all
-VERSION ?= 0.6.6
+VERSION ?= 0.6.14
 BUILD   := build/fw
 ifeq ($(DEBUG),1)
 BUILD := build/fw-debug
