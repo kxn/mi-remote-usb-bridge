@@ -26,6 +26,19 @@ Bluetooth/USB/ATVV specifications, complete reference repositories, IDE installe
 and toolchains are not redistributed in this repository. Pinned links are in
 `references/sources.json`. Research copies retain their own licenses; downloading
 them does not relicense them under MIT. GPL reference projects were used for
-comparison, not linked into the shipped firmware or host library.
+comparison, not linked into the shipped 0.6.5 firmware or host library. The optional
+development ICO host decoder described below is a separate exception.
 
 This is an independent project, not an official Xiaomi or WCH product.
+
+## Optional ICO host decoder
+
+`client/c/ico/` imports the wrapper and hash-locked fetch tooling from
+[kxn/unicom-ble-remote-research, f293c62](https://github.com/kxn/unicom-ble-remote-research/tree/f293c62/scripts/ico_decoder).
+The fetched G.722.1 fixed-point reference implementation is distributed by
+pjproject with original Polycom/ITU notices and GPL-2.0-or-later headers for
+pjproject components. These terms apply to the optional linked native decoder;
+it is not relicensed as MIT. Downloaded sources and built native libraries are
+not committed here. Preserve their notices when distributing the decoder.
+The MCU firmware never links this decoder. Captured key/audio fixtures retain
+[source attribution](tests/fixtures/unicom/SOURCE.md).

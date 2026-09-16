@@ -15,6 +15,7 @@ static bool irk_present, encrypted, auto_connect;
 static uint8_t last_addr[6], last_type;
 static unsigned queued, freed, pumps, scheduled;
 static unsigned address_configured;
+static unsigned scan_reports;static rbp_candidate_t scan_last;
 static uint8_t address_status, auto_sync_rl;
 static tmos_event_hdr_t rx_message;
 static char last_link_message[80];
@@ -276,6 +277,28 @@ static void match(void) {
                         GAP_ADRPT_ADV_IND);
 }
 int main(void) {
+  reset();wc_state=WC_SCAN;candidate_count=0;scan_reports=0;
+  uint8_t adv[]={3,3,0x12,0x18};gapDeviceInfoEvent_t observed={0};
+  observed.pEvtData=adv;observed.dataLen=sizeof adv;observed.rssi=-50;
+  on_device(&observed);assert(scan_reports==1 && candidate_count==1 && scan_last.support==0);
+  uint8_t name[]={4,9,'A','B','C'};observed.pEvtData=name;observed.dataLen=sizeof name;
+  on_device(&observed);assert(scan_reports==2 && scan_last.candidate_id==1 && !strcmp(scan_last.name,"ABC"));
+  /* Names without advertised HIDS must remain discoverable, including names
+   * delivered only in the scan response. Duplicate Xiaomi/other reports do
+   * not consume another slot. */
+  observed.addr[0]=1;observed.eventType=GAP_ADRPT_SCAN_RSP;
+  on_device(&observed);assert(scan_reports==3 && candidate_count==2 && scan_last.support==0);
+  on_device(&observed);assert(scan_reports==4 && candidate_count==2);
+  observed.addr[0]=2;observed.eventType=GAP_ADRPT_ADV_NONCONN_IND;
+  on_device(&observed);assert(scan_reports==4 && candidate_count==2);
+  uint8_t fd[]={3,3,0,0xfd};observed.pEvtData=fd;observed.dataLen=sizeof fd;observed.eventType=GAP_ADRPT_ADV_IND;
+  on_device(&observed);assert(scan_reports==5 && candidate_count==3 && scan_last.support==0);
+  uint8_t invalid_name[]={3,9,0xc0,0x80};observed.addr[0]=3;observed.pEvtData=invalid_name;observed.dataLen=sizeof invalid_name;
+  on_device(&observed);assert(scan_reports==5 && candidate_count==3);
+  char text[49];memset(text,0x7e,sizeof text);uint8_t longname[60];memset(longname,'A',sizeof longname);
+  assert(candidate_name(text,longname,sizeof longname)==47 && text[47]==0 && text[48]==0x7e);
+  uint8_t badutf[]={0xc0,0x80};assert(!candidate_name(text,badutf,sizeof badutf));
+
 #ifdef RBP_EXPERIMENTAL_HOST_VOICE_START
   assert(wch_central_backend()->voice_request_start != NULL);
 #else
@@ -641,14 +664,13 @@ void rbp_server_on_pair_prompt(rbp_server_t *s, uint8_t m, uint32_t k,
 }
 void rbp_server_on_scan_candidate(rbp_server_t *s, const rbp_candidate_t *c) {
   (void)s;
-  (void)c;
-  abort();
+  scan_reports++;scan_last=*c;
 }
 uint8_t rc003_adapter_match(const char *n, uint8_t l, bool h) {
   (void)n;
   (void)l;
   (void)h;
-  abort();
+  return 0;
 }
 bool rc003_adapter_mic_stop(rc003_adapter_t *a) {
   (void)a;

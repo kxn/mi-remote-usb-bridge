@@ -22,6 +22,7 @@ typedef struct {
 } rbp_device_profile_t;
 
 /* Voice is published only after a physical press/release is observed. */
+extern const rbp_device_profile_t RBP_PROFILE_UNICOM;
 extern const rbp_device_profile_t RBP_PROFILE_RC003;
 extern const rbp_device_profile_t RBP_PROFILE_RC003_VOICE;
 

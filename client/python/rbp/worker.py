@@ -11,8 +11,8 @@ from .client import BridgeClient
 
 
 class BridgeWorker:
-    def __init__(self, transport):
-        self.client = BridgeClient(transport)
+    def __init__(self, transport, *, receiver_id=None):
+        self.client = BridgeClient(transport,receiver_id=receiver_id)
         self.events = queue.Queue(maxsize=512)
         self.commands = queue.Queue(maxsize=32)
         self._stop = threading.Event()
@@ -20,7 +20,7 @@ class BridgeWorker:
         self.client.should_cancel=self._stop.is_set
         self._overflow = False
         self._dropping_audio = False
-        for name in ("keys", "device", "voice_start", "voice_data", "voice_end",
+        for name in ("keys", "key_event", "device", "voice_start", "voice_data", "voice_end",
                      "voice_format", "voice_abort", "pair_prompt", "operation", "find_done",
                      "session_lost"):
             setattr(self.client, "on_" + name, self._callback(name))

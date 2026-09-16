@@ -10,3 +10,6 @@ __all__ = [
     "BridgeClient", "DeviceInfo", "KeysState", "Candidate", "KeyDef",
     "EncodedFragment", "AudioFormat", "AudioEnd", "RpcError", "SessionLost",
 ]
+
+from .input import Key,KeyEvent,InputSource,LogicalKeys,model_profile,physical_layout
+__all__ += ["Key","KeyEvent","InputSource","LogicalKeys","model_profile","physical_layout"]

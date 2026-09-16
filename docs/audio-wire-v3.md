@@ -159,3 +159,7 @@ FORMAT config=2e fb 2a 00（predictor=-1234,index=42），编码 17，输出 [-1
 配置 step_index>88 是协议非法，不能因为旧 C reset helper 会钳制它就静默接受。
 
 主机可用 VOICE_START(0x0303) 请求独立新录音；详情见 wire-protocol.md。必须预先 VOICE_ENABLE；OK 不是音频开始。两次录音的压缩状态不得串接，分别按各自 START 配置解码。
+
+## 8. ICO profile 2/1
+
+新增 [iFLYTEK ICO 精确契约](ico-codec-v1.md)：16 kHz 单声道、40 字节/320 samples、空配置。主机需协商支持，应用 PCM 输出不变。

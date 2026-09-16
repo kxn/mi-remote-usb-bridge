@@ -31,7 +31,7 @@ void rbp_server_on_voice(rbp_server_t*s,const rbp_voice_evt_t*e,uint32_t now){
 }
 void rbp_server_on_voice_state(rbp_server_t*s,uint8_t v,uint8_t i,uint32_t rate){(void)s;(void)v;(void)i;(void)rate;}
 bool rbp_server_voice_wanted(const rbp_server_t*s){(void)s;return voice_wanted;}
-static int mtu(void*u,uint16_t m){(void)u;assert(m==247);calls++;return submit_status;}
+static int mtu(void*u,uint16_t m){(void)u;assert(m==RBP_ATT_MTU);calls++;return submit_status;}
 static int svc(void*u,uint16_t id){(void)u;requested_uuid=id;calls++;return submit_status;}
 static int svc128(void*u,const uint8_t*id){return svc(u,id[12]|id[13]<<8);}
 static int chr(void*u,uint16_t s,uint16_t e,uint16_t id){(void)u;assert(s<=e);requested_uuid=id;calls++;return submit_status;}
@@ -71,6 +71,15 @@ int main(void){
     FILE*f=fopen("tests/fixtures/rc003-hardware-report-map.hex","r");assert(f);
     uint8_t map[86];unsigned b;for(unsigned i=0;i<86;i++){assert(fscanf(f,"%2x",&b)==1);map[i]=b;}fclose(f);
     value(map,86);assert(a.rc003_boot_layout&&requested_uuid==0x2a4d);
+    /* Hardware enumerates more reports than the bounded runtime cache.
+     * Preserve RC003's existing first-eight behavior, including proceeding
+     * to descriptor discovery after surplus characteristics. */
+    rc003_adapter_t before_reports=a;
+    for(unsigned i=0;i<RC003_MAX_REPORT_CHARS+2;i++)characteristic(0x57+4*i,0x12);
+    assert(!failures&&a.state==ST_ENUM_REPORT_CHARS&&a.char_count==RC003_MAX_REPORT_CHARS);
+    event(RBP_GATT_EVT_PROC_DONE);
+    assert(!failures&&a.state==ST_DISC_DESCS&&requested_handle==0x58);
+    a=before_reports;
     characteristic(0x57,0x12);characteristic(0x63,0x12);event(RBP_GATT_EVT_PROC_DONE);
     descriptor(0x58,0x2902);descriptor(0x59,0x2908);
     descriptor(0x5c,0x2803);descriptor(0x62,0x2902); /* belongs to a different char */

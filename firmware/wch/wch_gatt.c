@@ -396,7 +396,7 @@ void wch_gatt_on_msg(void *p)
     case GOP_EXCHANGE_MTU:
         if (pMsg->method == ATT_EXCHANGE_MTU_RSP) {
             neg_mtu = pMsg->msg.exchangeMTURsp.serverRxMTU;
-            if(neg_mtu>247)neg_mtu=247;
+            if(neg_mtu>RBP_ATT_MTU)neg_mtu=RBP_ATT_MTU;
             if(neg_mtu<23) {bearer_failed(ATT_ERR_INVALID_VALUE_SIZE);return;}
             memset(&e, 0, sizeof(e));
             e.type = RBP_GATT_EVT_MTU_UPDATED;

@@ -182,3 +182,44 @@ static void test_host_voice_start(void) {
     CHECK(voice_start_calls==2);
     server_free();voice_start_status=RBP_STATUS_OK;
 }
+
+/* ICO uses the same RBP/3 delivery path; no IMA sample-count assumptions. */
+static void test_ico_delivery(void) {
+    rbp_server_t*s=server_new();client_reset();reset_frames();sink_blocked=false;
+    static const rbp_codec_t codecs[]={{2,1}};static const rbp_audio_caps_t caps={codecs,40,1};
+    rbp_server_set_voice_caps(s,&caps);
+    client_hello(s,11);tick(s,12);rbp_server_info_t info;rbp_server_get_info(s,&info);g_session=info.session_id;
+    rbp_server_on_link(s,RBP_LINK_READY,900,40);rbp_server_on_voice_state(s,RBP_VOICE_READY,RBP_VI_HTT,16000);
+    rbp_tlv_writer_t w;rbp_tlv_writer_init(&w);rbp_tlv_put_bool(&w,1,true);
+    uint8_t accept[]={2,0,0,0,1,0};rbp_tlv_put_bytes(&w,2,accept,6);rbp_tlv_put_u32(&w,3,40);
+    client_request_conn(s,50,RBP_OP_VOICE_ENABLE,w.buf,w.len,900);tick(s,51);
+    rbp_server_get_info(s,&info);CHECK(info.voice_enabled);
+    rbp_voice_evt_t ev={0};ev.type=RBP_VOICE_EVT_SOURCE_BEGIN;rbp_server_on_voice(s,&ev,60);
+    ev.type=RBP_VOICE_EVT_START;ev.u.start=(rbp_audio_format_t){2,16000,40,1,0,1,NULL};
+    rbp_server_on_voice(s,&ev,61);tick(s,61);
+    FILE*f=fopen("tests/fixtures/unicom/fb_single_01_00.att20.bin","rb");CHECK(f!=NULL);
+    uint8_t packets[60],body[48];unsigned units=0;
+    if(f)while(fread(packets,1,60,f)==60) {
+        for(unsigned i=0;i<3;i++)memcpy(body+i*16,packets+i*20+4,16);
+        ev.type=RBP_VOICE_EVT_ENCODED;ev.u.encoded.data=body;ev.u.encoded.len=40;
+        ev.u.encoded.unit_size=40;ev.u.encoded.offset=0;ev.u.encoded.samples=320;
+        rbp_server_on_voice(s,&ev,62+units);tick(s,62+units);units++;
+    }
+    if(f)fclose(f);
+    ev.type=RBP_VOICE_EVT_END;ev.u.end.reason=RBP_END_NORMAL;rbp_server_on_voice(s,&ev,62+units);
+    for(unsigned i=0;i<5;i++)tick(s,63+units+i);
+    CHECK(units==157);unsigned seen=0,ends=0;f=fopen("build/unicom-product-encoded.bin","wb");CHECK(f!=NULL);
+    for(size_t i=0;i<frame_count;i++) {
+        frame_t*q=&frames[i];CHECK(q->crc_ok);
+        if(q->hdr.opcode==RBP_OP_VOICE_DATA) {
+            uint32_t samples;uint64_t index;memcpy(&samples,q->payload+32,4);memcpy(&index,q->payload+24,8);
+            CHECK(q->len==80 && samples==320 && index==(uint64_t)seen*320);
+            if(f)fwrite(q->payload+40,1,40,f);seen++;
+        }
+        if(q->hdr.opcode==RBP_OP_VOICE_ENDED_EV) {
+            uint8_t reason;uint64_t samples;CHECK(parse_ended(q,&reason,&samples));
+            CHECK(reason==RBP_END_NORMAL && samples==157*320);ends++;
+        }
+    }
+    if(f)fclose(f);CHECK(seen==157 && ends==1);server_free();
+}

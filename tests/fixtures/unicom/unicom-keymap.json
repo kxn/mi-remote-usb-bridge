@@ -1,0 +1,305 @@
+{
+  "device": "联通BLE语音遥控器",
+  "address": "0C:F3:DE:C6:AE:64",
+  "software_revision": "XFRSD0D_U_R01_846_40091",
+  "date": "2026-09-15",
+  "scope": "Short presses in the tested connected mode; no claim about IR transmission, long presses or combinations.",
+  "transport": "Bumble 0.0.234 over WinUSB usb:0A12:0001",
+  "keys": [
+    {
+      "key": "TV",
+      "status": "no_hid_output_observed",
+      "trials": 2,
+      "control_key": "上",
+      "control_presses_received": 3,
+      "infrared_status": "not_measured",
+      "note": "FD02 was not subscribed; absence of HID is not proof of absence of all BLE traffic or IR-only operation."
+    },
+    {
+      "key": "红色电源",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 102,
+      "att_value_handle": 44,
+      "press_hex": "0000660000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "静音",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 127,
+      "att_value_handle": 44,
+      "press_hex": "00007f0000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "设置",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 246,
+      "att_value_handle": 48,
+      "press_hex": "f600",
+      "release_hex": "0000"
+    },
+    {
+      "key": "上",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 82,
+      "att_value_handle": 44,
+      "press_hex": "0000520000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "下",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 81,
+      "att_value_handle": 44,
+      "press_hex": "0000510000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "左",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 80,
+      "att_value_handle": 44,
+      "press_hex": "0000500000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "右",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 79,
+      "att_value_handle": 44,
+      "press_hex": "00004f0000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "确定",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 40,
+      "att_value_handle": 44,
+      "press_hex": "0000280000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "首页",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 547,
+      "att_value_handle": 48,
+      "press_hex": "2302",
+      "release_hex": "0000"
+    },
+    {
+      "key": "本地",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 1023,
+      "att_value_handle": 48,
+      "press_hex": "ff03",
+      "release_hex": "0000"
+    },
+    {
+      "key": "返回",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 243,
+      "att_value_handle": 44,
+      "press_hex": "0000f30000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "音量＋",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 128,
+      "att_value_handle": 44,
+      "press_hex": "0000800000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "音量－",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 129,
+      "att_value_handle": 44,
+      "press_hex": "0000810000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "频道上",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 156,
+      "att_value_handle": 48,
+      "press_hex": "9c00",
+      "release_hex": "0000"
+    },
+    {
+      "key": "频道下",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 157,
+      "att_value_handle": 48,
+      "press_hex": "9d00",
+      "release_hex": "0000"
+    },
+    {
+      "key": "语音",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 234,
+      "att_value_handle": 44,
+      "press_hex": "0000ea0000000000",
+      "release_hex": "0000000000000000",
+      "additional_report": {
+        "report_id": 248,
+        "att_value_handle": 59,
+        "press_hex": "8203010000000000000000000000000000000000",
+        "release_hex": "8203000000000000000000000000000000000000"
+      }
+    },
+    {
+      "key": "1",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 30,
+      "att_value_handle": 44,
+      "press_hex": "00001e0000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "2",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 31,
+      "att_value_handle": 44,
+      "press_hex": "00001f0000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "3",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 32,
+      "att_value_handle": 44,
+      "press_hex": "0000200000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "4",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 33,
+      "att_value_handle": 44,
+      "press_hex": "0000210000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "5",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 34,
+      "att_value_handle": 44,
+      "press_hex": "0000220000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "6",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 35,
+      "att_value_handle": 44,
+      "press_hex": "0000230000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "7",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 36,
+      "att_value_handle": 44,
+      "press_hex": "0000240000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "8",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 37,
+      "att_value_handle": 44,
+      "press_hex": "0000250000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "9",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 38,
+      "att_value_handle": 44,
+      "press_hex": "0000260000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "*",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 771,
+      "att_value_handle": 48,
+      "press_hex": "0303",
+      "release_hex": "0000"
+    },
+    {
+      "key": "0",
+      "status": "ble_hid_confirmed",
+      "report_id": 1,
+      "usage_page": 7,
+      "usage": 39,
+      "att_value_handle": 44,
+      "press_hex": "0000270000000000",
+      "release_hex": "0000000000000000"
+    },
+    {
+      "key": "#",
+      "status": "ble_hid_confirmed",
+      "report_id": 3,
+      "usage_page": 12,
+      "usage": 772,
+      "att_value_handle": 48,
+      "press_hex": "0403",
+      "release_hex": "0000"
+    }
+  ]
+}

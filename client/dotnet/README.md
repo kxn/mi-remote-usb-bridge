@@ -19,3 +19,10 @@ The host owns device selection, reconnect policy, key injection and ASR. The SDK
 Set RBP_SIM_BINARY to the built C sim_bridge executable, then run `dotnet test client/dotnet/RemoteBridge.Tests -c Release`.
 
 Tests cover wire/CRC goldens, TLV validation, fragmented ADPCM with reference PCM and invalid sequences, and C simulator handshake, idle heartbeat, discovery without auto-pair, manual pair and voice. Tests use local TCP ports 45971/45972 and temporary storage. They do not replace hardware acceptance.
+
+## Optional Unicom ICO audio
+
+Codec 2/revision 1 support and native dependency setup: [ICO decoder](../c/ico/README.md). Python/.NET PCM helpers preserve PCM16LE output; C consumers can use the ICO-enabled generic rbp_decoder build; the original IMA structure prefix remains compatible. Negotiate only codecs available in the installed host library.
+# 统一按键接口
+
+可选 `RemoteInputSession` 自动取得键目录并转发原始语音/管理事件，提供 `RemoteKey`、来源和能力查询。它独占消费 `client.Events`；应用改读包装器的 `Events`。详见 [统一按键、型号与布局](../../docs/logical-input.md)。

@@ -70,6 +70,7 @@ class AuditTests(unittest.TestCase):
                 if name=='hello':return {3:'test'}
                 if name=='get_device':return DeviceInfo(connection_id=1,peer_id=7,state=5,voice_state=2,voice_enabled=True)
                 if name=='get_peer':return {'peer_id':7}
+                if name=='get_stats':return {}
                 if name=='key_catalog':return []
                 if name in ('keys_snapshot','events_enable','voice_enable'):return None
                 raise AssertionError(name)
@@ -82,7 +83,7 @@ class AuditTests(unittest.TestCase):
             if event in ('end','abort'):raise OSError('disk full')
             return original(self,event,value)
         with tempfile.TemporaryDirectory(dir=ROOT/'build') as d:
-            args=SimpleNamespace(compact_log=False,log=str(Path(d)/'log'),seconds=.1,port='MOCK',tcp=None,pair=False,record_dir=d)
+            args=SimpleNamespace(compact_log=False,log=str(Path(d)/'log'),seconds=.1,port='MOCK',tcp=None,pair=False,scan=False,no_connect=False,start_voice=False,record_dir=d)
             with patch.object(rbp_diag,'Trace',Trace),patch.object(rbp_diag,'BridgeWorker',Worker),patch.object(rbp_diag,'SerialTransport',lambda *a:None),patch.object(WaveRecorder,'_record',fail_end):
                 rbp_diag.run(args)
         self.assertEqual(len(workers),1);self.assertTrue(workers[0].closed)

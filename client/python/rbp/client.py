@@ -99,6 +99,7 @@ class KeyDef:
 
 from .audio_wire import AudioFormat,EncodedFragment,AudioEnd,AudioStream,AudioError
 from .codecs import SUPPORTED_CODECS
+from .input import LogicalKeys,InputSource,model_profile,physical_layout
 
 
 class RpcError(RuntimeError):
@@ -115,8 +116,12 @@ class BridgeClient:
     """Single-owner USB session client.  NOT thread-safe; use one thread or
     wrap all calls in a lock."""
 
-    def __init__(self, transport) -> None:
+    def __init__(self, transport, *, receiver_id=None) -> None:
         self.t = transport
+        self.receiver_id=receiver_id or secrets.token_hex(16)
+        self.on_key_event=None
+        self.logical_keys=LogicalKeys(lambda event:self.on_key_event(event) if self.on_key_event else None)
+        self._logical_enabled=False;self._logical_retry_at=0
         self.parser = FrameParser()
         self.session_id = 0
         self.last_session_error = ""
@@ -275,6 +280,7 @@ class BridgeClient:
             if d.connection_id!=self.connection_id:
                 self._abort_voice("connection_changed");self.keys_seq=0;self._have_keys=False;self.pressed_bits=0;self.catalog=[]
                 self.events_enabled_flag=False;self.voice_enabled=False
+            self._logical_device(d)
             self.device=d;self.connection_id=d.connection_id
             self.voice_enabled=d.voice_enabled
             if self.on_device:self.on_device(d)
@@ -288,6 +294,7 @@ class BridgeClient:
             if self._have_keys and st.input_seq<self.keys_seq:raise ValueError("input sequence regressed")
             if self._have_keys and st.kind!=2 and st.input_seq<=self.keys_seq: return
             self._have_keys=True;self.keys_seq=st.input_seq;self.pressed_bits=st.pressed_bits
+            self.logical_keys.feed(st)
             if self.on_keys:self.on_keys(st)
         elif op in (wire.OP_VOICE_STARTED_EV,wire.OP_VOICE_FORMAT_EV,wire.OP_VOICE_DATA,wire.OP_VOICE_ENDED_EV):
             if self._audio_ignored:
@@ -364,6 +371,7 @@ class BridgeClient:
         self._heartbeat()
 
     def _session_broken(self, reason="session reset"):
+        self.logical_keys.reset("session_lost")
         had_session=bool(self.session_id)
         if had_session:self.last_session_error=reason
         self.session_id=0;self.connection_id=0;self._rx_seq=0
@@ -381,6 +389,7 @@ class BridgeClient:
             if self._stream:
                 try:self._stream.check_timeout()
                 except AudioError as exc:self._reject_audio(str(exc))
+            if self._logical_enabled and self.session_id:self._service_logical_keys()
             if self._replies and self.session_id:
                 r=self._replies.popleft()
                 if r.get("voice_disable"):self.voice_enable(False)
@@ -420,6 +429,10 @@ class BridgeClient:
         hdr, payload = self._request(wire.OP_GET_DEVICE)
         self._check_status(hdr)
         d = DeviceInfo.from_tlv(schema.parse(payload,schema.DEVICE))
+        if d.connection_id!=self.connection_id:
+            self._abort_voice("connection_changed");self.keys_seq=0;self._have_keys=False;self.pressed_bits=0;self.catalog=[]
+            self.events_enabled_flag=False;self.voice_enabled=False
+        self._logical_device(d)
         self.device = d
         self.connection_id = d.connection_id
         return d
@@ -521,8 +534,54 @@ class BridgeClient:
 
     # ---------------- keys ----------------
 
+    def _input_source(self,d):
+        return InputSource(self.receiver_id,self.session_id,d.peer_id,d.connection_id,d.model_id,d.catalog_revision)
+
+    def _logical_device(self,d):
+        if self.logical_keys.ready and (d.state!=5 or self.logical_keys.source!=self._input_source(d)):
+            self.logical_keys.reset("device_changed")
+
+    def enable_logical_keys(self,enable=True):
+        """Opt-in automatic catalog/snapshot/subscription. Call drain() or use BridgeWorker.
+
+        on_key_event receives KeyEvent; on_keys remains the raw slot API.
+        Callbacks must enqueue work, never perform blocking RPCs recursively.
+        """
+        self._logical_enabled=bool(enable);self._logical_retry_at=0
+        if not enable:
+            self.logical_keys.reset("input_disabled");return
+        self.get_device();self._service_logical_keys()
+
+    def _service_logical_keys(self):
+        if not self._logical_enabled or time.monotonic()<self._logical_retry_at:return
+        d=self.device
+        if d is None or d.state!=5 or not d.connection_id:return
+        source=self._input_source(d)
+        if self.logical_keys.source==source:return
+        try:
+            catalog=self.key_catalog()
+            if self.device is None or self.device.state!=5 or self._input_source(self.device)!=source:return
+            self.logical_keys.install(source,catalog,d.key_count)
+            self.events_enable(True)
+            if self.logical_keys.source!=source:return
+            self.logical_keys.feed(self.keys_snapshot())
+        except (RpcError,TimeoutError):
+            self.logical_keys.reset("catalog_unavailable");self._logical_retry_at=time.monotonic()+1
+        except ValueError as exc:
+            self._session_broken(f"logical input: {exc}");raise
+
+    def has_key(self,key):return self.logical_keys.has_key(key)
+
+    def input_info(self):
+        d=self.device
+        return dict(source=self.logical_keys.source,ready=self.logical_keys.ready,
+            keys=tuple(self.logical_keys.catalog),pressed_keys=self.logical_keys.pressed_keys,
+            profile=model_profile(d.model_id) if d else {},layout=physical_layout(d.model_id) if d else None)
+
     def key_catalog(self) -> List[KeyDef]:
-        self.catalog = []
+        result = []
+        marker=lambda:(self.session_id,self.connection_id,self.device.model_id if self.device else None,self.device.catalog_revision if self.device else None)
+        identity=marker()
         cursor = 0
         revision=None
         seen_slots=set();seen_ids=set()
@@ -532,6 +591,7 @@ class BridgeClient:
                 w.u8(1, cursor)
             hdr, payload = self._request(wire.OP_KEY_CATALOG, w.data)
             self._check_status(hdr)
+            if identity!=marker():raise RpcError(7,"catalog connection changed")
             t = schema.validate_response(hdr.opcode,hdr.status,payload)
             if revision is not None and revision!=t[1]:raise ValueError("catalog changed during pagination")
             revision=t[1]
@@ -549,13 +609,16 @@ class BridgeClient:
                 seen_slots.add(slot);seen_ids.add(key_id)
                 name = blob[pos + 4:pos + 4 + name_len].decode("utf-8")
                 pos += 4 + name_len
-                self.catalog.append(KeyDef(slot, key_id, name))
+                result.append(KeyDef(slot, key_id, name))
             if pos!=len(blob):raise ValueError("catalog trailing bytes")
             if t[2] == 255:
                 break
             if not cursor<t[2]<64:raise ValueError("catalog cursor did not advance")
             cursor = t[2]
-        return self.catalog
+        if [k.slot for k in result]!=list(range(len(result))):raise ValueError("non-contiguous catalog")
+        if self.device and self.device.state==5 and (revision!=self.device.catalog_revision or len(result)!=self.device.key_count):raise ValueError("catalog disagrees with device")
+        self.catalog=result
+        return list(result)
 
     def events_enable(self, enable: bool) -> None:
         w = TlvWriter().boolean(1, enable)
@@ -616,7 +679,11 @@ class BridgeClient:
 
     def keys_snapshot(self):
         h,p=self._request(wire.OP_KEYS_SNAPSHOT);self._check_status(h)
-        st=self._keys(p);self._have_keys=True;self.keys_seq=st.input_seq;self.pressed_bits=st.pressed_bits;return st
+        if h.connection_id!=self.connection_id:raise RpcError(7,"snapshot connection changed")
+        st=self._keys(p)
+        if not self._have_keys or st.input_seq>=self.keys_seq:
+            self._have_keys=True;self.keys_seq=st.input_seq;self.pressed_bits=st.pressed_bits
+        return st
 
     def set_reconnect(self, peer_id, enabled):
         h,_=self._request(wire.OP_SET_RECONNECT,TlvWriter().u32(1,peer_id).boolean(2,enabled).data);self._check_status(h)

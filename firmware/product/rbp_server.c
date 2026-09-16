@@ -866,9 +866,8 @@ void rbp_server_on_scan_candidate(rbp_server_t *s, const rbp_candidate_t *cand)
         rbp_candidate_t *c = &s->cand[i];
         if (c->candidate_id == cand->candidate_id) {
             c->signal = cand->signal;
-            c->support = cand->support;
-            copy_name(c->name, sizeof(c->name), cand->name);
-            c->name_len = cand->name_len;
+            if(cand->support>c->support)c->support=cand->support;
+            if(cand->name_len){copy_name(c->name, sizeof(c->name), cand->name);c->name_len=cand->name_len;}
             return;
         }
     }

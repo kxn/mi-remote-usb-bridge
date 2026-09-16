@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mi-remote-usb-bridge"
-version = "0.6.5"
+version = "0.6.6"
 readme = "README.md"
 license = {file = "LICENSE"}
 description = "RBP/3 host SDK for the Mi Remote USB Bridge"
@@ -13,3 +13,6 @@ dependencies = ["pyserial==3.5"]
 
 [tool.setuptools]
 packages = ["rbp"]
+
+[tool.setuptools.package-data]
+rbp = ["input_profiles.json"]

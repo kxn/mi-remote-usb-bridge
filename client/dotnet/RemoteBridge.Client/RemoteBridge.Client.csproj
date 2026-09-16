@@ -3,11 +3,14 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.6.5</Version>
+    <Version>0.6.6</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="9.0.0" />
     <EmbeddedResource Include="schema.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../python/rbp/input_profiles.json" LogicalName="RemoteBridge.InputProfiles.json" />
   </ItemGroup>
 </Project>

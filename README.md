@@ -1,9 +1,11 @@
 # Mi Remote USB Bridge
 
-把小米遥控器 2 Pro（RC003）的蓝牙按键与语音，经 CH582F 小板桥接到 USB。
+把小米遥控器 2 Pro（RC003）和已测联通遥控器的蓝牙按键与语音，经 CH582F 小板桥接到 USB。
 Windows 不再直接连接遥控器，应用通过串口协议读取按键和录音，因此 Home、语音等键不会自动变成系统键盘输入。
 
-**当前版本：0.6.5，协议 RBP/3.0。** 已在 CH582F + RC003 + Windows 上实测配对、按键、语音及 release 错误记录。此前版本已验证长录音和掉线重连；不是每个版本都重跑了全部射频场景。macOS 有串口及动作注入实现，尚未完成真机验收。
+**当前版本：0.6.6，协议 RBP/3.0。** 已在 CH582F + RC003 + Windows 上实测配对、按键、语音及 release 错误记录。此前版本已验证长录音和掉线重连；不是每个版本都重跑了全部射频场景。macOS 有串口及动作注入实现，尚未完成真机验收。
+
+已加入联通 HID/ICO 方案与主机 PCM 解码。用户确认 MTU=23 对照固件解决联通初始化失败；0.6.6 固定使用该设置。详细实测范围见 [发布记录](releases/0.6.6/README.md)，上位机接入见 [使用指南](docs/host-sdk-demo.md) 与 [统一按键接口](docs/logical-input.md)。
 
 ## 功能与边界
 
@@ -13,11 +15,11 @@ Windows 不再直接连接遥控器，应用通过串口协议读取按键和录
 - 遥控器按住语音键录音，板子传原始压缩数据及解码元信息，上位机解码/保存 WAV。
 - RC003 一次录音约 60 秒上限；已取消自动续录，release 不启用主机主动开麦实验。
 - release 保留原始 SDK/GAP/GATT/ATVV/存储错误记录，GUI、CLI 自动读取。
-- RBP/3 可登记其他音频编码；目前设备适配器只有 RC003，不能据此声称支持耳机、PS4 手柄或任意遥控器。
+- RBP/3 可登记其他音频编码；目前仅支持已验证的小米 RC003 和联通 HID/ICO 配置，不能据此声称支持耳机、PS4 手柄或任意遥控器。
 
 ## 快速开始
 
-1. 使用 [0.6.5 固件](releases/0.6.5/ch582f.bin)，按 [构建和刷写](docs/firmware-bringup.md) 操作。
+1. 使用 [0.6.6 固件](releases/0.6.6/ch582f.bin)，按 [构建和刷写](docs/firmware-bringup.md) 操作。
 2. Python 3.11+，在项目根目录执行（Windows PowerShell）：
 
 ```powershell
@@ -27,6 +29,8 @@ python -m venv tools/demo-venv
 ```
 
 替换为实际端口。macOS 使用对应 Python 和 `/dev/cu.*` 端口；不要同时启动两个串口客户端。
+
+联通语音需先构建主机 ICO 解码库：`python client/c/ico/build.py`（需要原生 GCC/Clang，详见 [解码依赖](client/c/ico/README.md)）。仅安装 Python 包不包含此原生库。
 
 3. 遥控器进入配对模式，GUI 点击 **Scan** → 选中候选 → **Pair selected**。已绑定设备无需重新配对。
 4. 勾选 **Record next voice streams…** 选择目录，再按住语音键说话。按键注入需要显式启用 **Enable mapped OS actions**。
@@ -45,7 +49,7 @@ CLI 录音和日志：
 | 目录 | 内容 |
 | --- | --- |
 | `firmware/product` | RBP 会话、设备模型、队列、release 诊断 |
-| `firmware/adapters` | HOGP 与 RC003/ATVV 适配器 |
+| `firmware/adapters` | HOGP、RC003/ATVV 与联通 HID/ICO 适配器 |
 | `firmware/wch` | 板级、BLE/GATT、USB，以及固定 WCH SDK 子集 |
 | `protocol` | RBP/3 C 帧/TLV、音频结构、schema、测试向量 |
 | `client/python` | 独立 Python SDK，可安装；不依赖 Qt |
@@ -53,7 +57,7 @@ CLI 录音和日志：
 | `client/c` | 可选 C 音频解码库；不是完整串口会话 SDK |
 | `demo` | CLI、GUI、WAV/映射/离线重放 |
 | `tests`, `sim` | 自动回归与 C 模拟器 |
-| `releases/0.6.5` | 当前固件、校验清单与验收范围 |
+| `releases/0.6.6` | 当前固件、校验清单与验收范围 |
 
 ## 开发文档
 

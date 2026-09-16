@@ -20,6 +20,12 @@ extern "C" {
 #endif
 
 #define RC003_MAX_REPORT_CHARS 8
+#ifndef RBP_ATT_MTU
+#define RBP_ATT_MTU 23
+#endif
+#if RBP_ATT_MTU < 23 || RBP_ATT_MTU > 247
+#error RBP_ATT_MTU must be between 23 and 247
+#endif
 
 typedef struct {
     uint16_t value_handle;   /* report characteristic value handle */
@@ -27,6 +33,7 @@ typedef struct {
     uint16_t ref_handle;     /* report reference descriptor handle */
     uint8_t report_id;
     uint8_t report_type;     /* 1 = input */
+    uint8_t properties;
     uint8_t usage_page;      /* from report map when known */
     bool subscribed;
 } rc003_report_char_t;
@@ -71,6 +78,14 @@ struct rc003_adapter {
     uint16_t service_changed_handle, service_changed_cccd;
     uint64_t pressed_bits;
 
+    /* Only this measured Unicom profile; discovery buffers are shared. */
+    struct {
+        bool selected, hello, active, started, closing, previous_valid, down;
+        uint8_t part, command, in_flight;
+        uint16_t fb, fc, f8, fd, fd_cccd, sequence, previous;
+        uint32_t command_deadline, refresh_ms, last_audio_ms, close_ms;
+        uint8_t body[48];
+    } unicom;
     rc003_atvv_t atvv;
     uint32_t now_ms;
 

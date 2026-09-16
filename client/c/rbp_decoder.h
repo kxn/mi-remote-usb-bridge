@@ -14,11 +14,20 @@ typedef struct {
     uint32_t max_unit_bytes,sample_rate;
     ima_state_t ima;
     uint8_t ready;
+    /* Optional codec extension. The original IMA prefix ABI remains accepted.
+     * Recompile with this header and use an ICO-enabled build for codec 2. */
+    uint32_t codec_id;
+    uint64_t codec_state[128];
 } rbp_decoder_t;
-int rbp_decoder_init(rbp_decoder_t *decoder,uint32_t size,const rbp_audio_format_t *format);
+#if defined(_WIN32) && defined(RBP_DECODER_EXPORTS)
+#define RBP_DECODER_API __declspec(dllexport)
+#else
+#define RBP_DECODER_API
+#endif
+RBP_DECODER_API int rbp_decoder_init(rbp_decoder_t *decoder,uint32_t size,const rbp_audio_format_t *format);
 /* Input is one complete coding unit; capacity/output are int16 sample frames.
  * Failure never partially decodes. The output buffer belongs to the caller. */
-int rbp_decoder_decode(rbp_decoder_t *decoder,const uint8_t *encoded,uint32_t bytes,
+RBP_DECODER_API int rbp_decoder_decode(rbp_decoder_t *decoder,const uint8_t *encoded,uint32_t bytes,
                        int16_t *pcm,uint32_t capacity,uint32_t *written);
 #ifdef __cplusplus
 }

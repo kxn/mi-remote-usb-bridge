@@ -1590,6 +1590,7 @@ static void test_release_fault_rpc(void) {
 
 int main(void)
 {
+    test_ico_delivery();
     test_release_fault_rpc();
     test_voice_burst_without_tick();
     test_voice_fragment_epoch_unknown();

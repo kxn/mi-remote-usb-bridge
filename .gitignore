@@ -24,3 +24,5 @@ __pycache__/
 # .NET SDK build output
 bin/
 obj/
+
+/client/c/ico/g7221/

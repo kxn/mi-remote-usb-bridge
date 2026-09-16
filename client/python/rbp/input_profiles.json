@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "keys": {
+    "POWER": 1,
+    "VOICE": 2,
+    "UP": 3,
+    "DOWN": 4,
+    "LEFT": 5,
+    "RIGHT": 6,
+    "OK": 7,
+    "BACK": 8,
+    "HOME": 9,
+    "MENU": 10,
+    "TV": 11,
+    "VOLUME_UP": 12,
+    "VOLUME_DOWN": 13,
+    "MUTE": 14,
+    "PLAY_PAUSE": 15,
+    "NEXT": 16,
+    "PREVIOUS": 17,
+    "STOP": 18,
+    "SETTINGS": 19,
+    "LOCAL": 20,
+    "CHANNEL_UP": 21,
+    "CHANNEL_DOWN": 22,
+    "DIGIT_0": 23,
+    "DIGIT_1": 24,
+    "DIGIT_2": 25,
+    "DIGIT_3": 26,
+    "DIGIT_4": 27,
+    "DIGIT_5": 28,
+    "DIGIT_6": 29,
+    "DIGIT_7": 30,
+    "DIGIT_8": 31,
+    "DIGIT_9": 32,
+    "STAR": 33,
+    "HASH": 34
+  },
+  "models": {
+    "xiaomi.rc003": {
+      "family": "xiaomi.atvv",
+      "layout_id": null
+    },
+    "unicom.hid_ico.v1": {
+      "family": "unicom.hid_ico",
+      "layout_id": "unicom.photo.v1"
+    }
+  },
+  "layouts": {
+    "unicom.photo.v1": {
+      "label": "Observed Unicom remote",
+      "provenance": "User photograph, 2026-09-16; approximate normalized centers, not dimensions. TV exists physically but has no confirmed BLE key.",
+      "buttons": [
+        {
+          "key_id": 11,
+          "label": "TV",
+          "x": 0.18,
+          "y": 0.0417
+        },
+        {
+          "key_id": 1,
+          "label": "POWER",
+          "x": 0.82,
+          "y": 0.0417
+        },
+        {
+          "key_id": 14,
+          "label": "MUTE",
+          "x": 0.18,
+          "y": 0.125
+        },
+        {
+          "key_id": 19,
+          "label": "SETTINGS",
+          "x": 0.82,
+          "y": 0.125
+        },
+        {
+          "key_id": 3,
+          "label": "UP",
+          "x": 0.5,
+          "y": 0.2083
+        },
+        {
+          "key_id": 5,
+          "label": "LEFT",
+          "x": 0.18,
+          "y": 0.2917
+        },
+        {
+          "key_id": 7,
+          "label": "OK",
+          "x": 0.5,
+          "y": 0.2917
+        },
+        {
+          "key_id": 6,
+          "label": "RIGHT",
+          "x": 0.82,
+          "y": 0.2917
+        },
+        {
+          "key_id": 4,
+          "label": "DOWN",
+          "x": 0.5,
+          "y": 0.375
+        },
+        {
+          "key_id": 9,
+          "label": "HOME",
+          "x": 0.18,
+          "y": 0.4583
+        },
+        {
+          "key_id": 20,
+          "label": "LOCAL",
+          "x": 0.5,
+          "y": 0.4583
+        },
+        {
+          "key_id": 8,
+          "label": "BACK",
+          "x": 0.82,
+          "y": 0.4583
+        },
+        {
+          "key_id": 12,
+          "label": "VOLUME_UP",
+          "x": 0.18,
+          "y": 0.5417
+        },
+        {
+          "key_id": 2,
+          "label": "VOICE",
+          "x": 0.5,
+          "y": 0.5417
+        },
+        {
+          "key_id": 21,
+          "label": "CHANNEL_UP",
+          "x": 0.82,
+          "y": 0.5417
+        },
+        {
+          "key_id": 13,
+          "label": "VOLUME_DOWN",
+          "x": 0.18,
+          "y": 0.625
+        },
+        {
+          "key_id": 22,
+          "label": "CHANNEL_DOWN",
+          "x": 0.82,
+          "y": 0.625
+        },
+        {
+          "key_id": 24,
+          "label": "DIGIT_1",
+          "x": 0.18,
+          "y": 0.7083
+        },
+        {
+          "key_id": 25,
+          "label": "DIGIT_2",
+          "x": 0.5,
+          "y": 0.7083
+        },
+        {
+          "key_id": 26,
+          "label": "DIGIT_3",
+          "x": 0.82,
+          "y": 0.7083
+        },
+        {
+          "key_id": 27,
+          "label": "DIGIT_4",
+          "x": 0.18,
+          "y": 0.7917
+        },
+        {
+          "key_id": 28,
+          "label": "DIGIT_5",
+          "x": 0.5,
+          "y": 0.7917
+        },
+        {
+          "key_id": 29,
+          "label": "DIGIT_6",
+          "x": 0.82,
+          "y": 0.7917
+        },
+        {
+          "key_id": 30,
+          "label": "DIGIT_7",
+          "x": 0.18,
+          "y": 0.875
+        },
+        {
+          "key_id": 31,
+          "label": "DIGIT_8",
+          "x": 0.5,
+          "y": 0.875
+        },
+        {
+          "key_id": 32,
+          "label": "DIGIT_9",
+          "x": 0.82,
+          "y": 0.875
+        },
+        {
+          "key_id": 33,
+          "label": "STAR",
+          "x": 0.18,
+          "y": 0.9583
+        },
+        {
+          "key_id": 23,
+          "label": "DIGIT_0",
+          "x": 0.5,
+          "y": 0.9583
+        },
+        {
+          "key_id": 34,
+          "label": "HASH",
+          "x": 0.82,
+          "y": 0.9583
+        }
+      ]
+    }
+  }
+}

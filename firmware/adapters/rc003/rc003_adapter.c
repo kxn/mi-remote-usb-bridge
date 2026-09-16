@@ -35,6 +35,7 @@ enum {
     ST_FIND_PROTOCOL_MODE, ST_SET_PROTOCOL_MODE, ST_READ_MAP_CONT,
     ST_READ_PROTOCOL_MODE, ST_VERIFY_PROTOCOL_MODE,
     ST_FIND_HID_INFO, ST_READ_HID_INFO,
+    ST_UNICOM_SERVICE, ST_UNICOM_CHAR, ST_UNICOM_DESC, ST_UNICOM_SUB, ST_UNICOM_WAIT,
 };
 
 #define INIT_TIMEOUT_MS 2000u /* local submission / ATVV CAPS budget */
@@ -49,7 +50,8 @@ static void fail_init(rc003_adapter_t *a,const char *cause,bool invalidate_cache
     a->pending_search=false;
     char message[]="init failed: S=00 E=00 M=0000 N=00 I=00 T=0";
     a->failed_stage=a->state;
-    rbp_fault_record(RBP_FAULT_ADAPTER,a->state,a->last_att_error,cause[0]=='t');
+    bool timed_out=strstr(cause,"timeout")!=NULL;
+    rbp_fault_record(RBP_FAULT_ADAPTER,a->state,a->last_att_error,timed_out);
     DT(DT_HID,DT_ERROR,3,a->state,a->last_att_error,a->map_len,a->char_count);
     const char fields[]="SEMNI";
     uint16_t values[]={a->state,a->last_att_error,a->map_len,a->char_count,(uint8_t)a->cur_char};
@@ -58,7 +60,7 @@ static void fail_init(rc003_adapter_t *a,const char *cause,bool invalidate_cache
         unsigned width=i==2?4:2;
         for(unsigned j=0;j<width;j++)p[width-j-1]="0123456789ABCDEF"[(values[i]>>(4*j))&15];
     }
-    if(cause[0]=='t')message[sizeof message-2]='1';
+    if(timed_out)message[sizeof message-2]='1';
     a->state=ST_FAILED;
     rbp_server_adapter_failed(a->server,message);
 }
@@ -149,6 +151,9 @@ static void recompute_keys(rc003_adapter_t *a)
     }
     if(bits!=a->pressed_bits) {a->pressed_bits=bits;key_state_send(a,bits);}
 }
+
+#include "unicom_profile.inc"
+#include "unicom_runtime.inc"
 
 /* ---------------- sink callbacks for the ATVV engine ---------------- */
 
@@ -265,6 +270,9 @@ static int start_op(rc003_adapter_t *a, uint8_t state, uint32_t now_ms)
 {
     if(state==ST_FIND_GATT_SVC || state==ST_FIND_HID_SVC || state==ST_FIND_BAT_SVC || state==ST_FIND_ATVV_SVC) a->svc_start=a->svc_end=0;
     if(state==ST_DISC_CTL_DESC || state==ST_DISC_AUDIO_DESC || state==ST_DISC_CHANGED_DESC || state==ST_DISC_DESCS || state==ST_DISC_BAT_DESCS)a->desc_boundary=false;
+    if(state==ST_FIND_ATVV_SVC && a->unicom.selected)state=ST_UNICOM_SERVICE;
+    if(state==ST_UNICOM_SERVICE)a->svc_start=a->svc_end=0;
+    if(state==ST_UNICOM_DESC)a->desc_boundary=false;
     a->state = state;
     if(state==ST_ATVV_PREHANDSHAKE)a->caps_requested=false;
     a->retry=0;
@@ -320,9 +328,13 @@ void rc003_adapter_tick(rc003_adapter_t *a, uint32_t now_ms)
 {
     a->now_ms = now_ms;
     if(a->state==ST_IDLE || a->state==ST_FAILED)return;
-    if(a->atvv.open_pending && !rbp_server_voice_wanted(a->server))
+    if(a->unicom.selected) {
+        unicom_tick(a);
+        if(a->state==ST_DONE || a->state==ST_UNICOM_WAIT || a->state==ST_FAILED)return;
+    }
+    if(!a->unicom.selected && a->atvv.open_pending && !rbp_server_voice_wanted(a->server))
         rc003_atvv_request_stop(&a->atvv); /* enable/session revoked before START */
-    if(a->voice_ready)(void)rc003_atvv_tick(&a->atvv, now_ms);
+    if(!a->unicom.selected && a->voice_ready)(void)rc003_atvv_tick(&a->atvv, now_ms);
     if(a->state==ST_IDLE || a->state==ST_FAILED)return; /* callback can detach */
     if(a->state!=ST_IDLE && a->state!=ST_DONE && a->state!=ST_FAILED &&
        (int32_t)(now_ms-a->init_deadline_ms)>=0){fail_transport(a,"timeout total");return;}
@@ -341,6 +353,17 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
 {
     int rc=0;uint8_t starting_state=a->state;
     switch (a->state) {
+    case ST_UNICOM_SERVICE:
+        rc=a->gatt->disc_service_by_uuid16(a->gatt_user,0xfd00);break;
+    case ST_UNICOM_CHAR:
+        rc=a->gatt->read_chars_by_uuid16(a->gatt_user,a->svc_start,a->svc_end,0xfd02);break;
+    case ST_UNICOM_DESC:
+        rc=a->gatt->disc_char_descs(a->gatt_user,a->unicom.fd+1,a->svc_end);break;
+    case ST_UNICOM_SUB: {
+        uint8_t on[]={1,0};
+        rc=a->gatt->write_value(a->gatt_user,a->unicom.fd_cccd,on,2);break;
+    }
+    case ST_UNICOM_WAIT:return;
     case ST_FIND_HID_INFO:
         rc=a->gatt->read_chars_by_uuid16(a->gatt_user,a->svc_start,a->svc_end,0x2a4a);break;
     case ST_READ_HID_INFO:
@@ -358,7 +381,7 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
     case ST_READ_MAP_CONT:
         rc=a->gatt->read_long_value(a->gatt_user,a->map_value_handle,a->map_len);break;
     case ST_MTU:
-        rc=a->gatt->exchange_mtu(a->gatt_user, 247);
+        rc=a->gatt->exchange_mtu(a->gatt_user, RBP_ATT_MTU);
         break;
     case ST_FIND_GATT_SVC:rc=a->gatt->disc_service_by_uuid16(a->gatt_user,0x1801);break;
     case ST_FIND_CHANGED_CHAR:rc=a->gatt->read_chars_by_uuid16(a->gatt_user,a->svc_start,a->svc_end,0x2a05);break;
@@ -411,7 +434,7 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
     }
     case ST_SUBSCRIBE_REPORT: {
         rc003_report_char_t *c = &a->chars[a->cur_char];
-        bool mapped=false;
+        bool mapped=a->unicom.selected;
         for(unsigned i=0;i<a->map.input_count;i++)if(a->map.inputs[i].report_id==c->report_id)mapped=true;
         if (!c->cccd_handle || c->report_type!=1 || !mapped) {
             /* skip to next char */
@@ -430,6 +453,7 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
         break;
     }
     case ST_FIND_BAT_SVC:
+        if(a->unicom.selected && !unicom_reports(a)){unicom_bad(a,"Unicom report references");return;}
         for(unsigned i=0;i<a->map.input_count;i++) {
             bool found=false;
             for(unsigned j=0;j<a->char_count;j++)if(a->chars[j].subscribed && a->chars[j].report_id==a->map.inputs[i].report_id)found=true;
@@ -588,8 +612,44 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
     if(evt->type==RBP_GATT_EVT_PROC_ERROR && evt->status==0x12) {
         fail_initialization(a,"GATT database out of sync");return;
     }
+    if(a->unicom.selected && evt->type==RBP_GATT_EVT_NOTIFY) {unicom_notify(a,evt);return;}
+    if(a->unicom.selected && a->state==ST_DONE && a->unicom.in_flight) {
+        if(evt->type==RBP_GATT_EVT_WRITE_DONE){a->unicom.in_flight=0;return;}
+        if(evt->type==RBP_GATT_EVT_PROC_ERROR){unicom_bad(a,"Unicom FB write failed");return;}
+    }
     a->atvv.now_ms=a->now_ms;
     switch (a->state) {
+    case ST_UNICOM_SERVICE:
+        if(evt->type==RBP_GATT_EVT_SERVICE_FOUND) {
+            if(a->svc_start){unicom_bad(a,"duplicate FD00");return;}
+            a->svc_start=evt->svc_start;a->svc_end=evt->svc_end;
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE && a->svc_start) {
+            start_op(a,ST_UNICOM_CHAR,a->now_ms);begin_next(a,a->now_ms);
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE || evt->type==RBP_GATT_EVT_SERVICE_NOT_FOUND || evt->type==RBP_GATT_EVT_PROC_ERROR)
+            unicom_bad(a,"FD00 unavailable");
+        break;
+    case ST_UNICOM_CHAR:
+        if(evt->type==RBP_GATT_EVT_CHARS_FOUND) {
+            if(evt->len<3 || !(evt->value[0]&0x10) || a->unicom.fd){unicom_bad(a,"FD02 properties");return;}
+            a->unicom.fd=evt->value[1]|((uint16_t)evt->value[2]<<8);
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE && a->unicom.fd) {
+            start_op(a,ST_UNICOM_DESC,a->now_ms);begin_next(a,a->now_ms);
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE || evt->type==RBP_GATT_EVT_PROC_ERROR)unicom_bad(a,"FD02 unavailable");
+        break;
+    case ST_UNICOM_DESC:
+        if(evt->type==RBP_GATT_EVT_DESC_FOUND) {
+            if(evt->uuid16==0x2803)a->desc_boundary=true;
+            if(!a->desc_boundary && evt->uuid16==0x2902)a->unicom.fd_cccd=evt->desc_handle;
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE && a->unicom.fd_cccd) {
+            start_op(a,ST_UNICOM_SUB,a->now_ms);begin_next(a,a->now_ms);
+        } else if(evt->type==RBP_GATT_EVT_PROC_DONE || evt->type==RBP_GATT_EVT_PROC_ERROR)unicom_bad(a,"FD02 CCCD unavailable");
+        break;
+    case ST_UNICOM_SUB:
+        if(evt->type==RBP_GATT_EVT_WRITE_DONE) {
+            start_op(a,ST_UNICOM_WAIT,a->now_ms);
+            if(a->unicom.hello)unicom_ready(a);
+        } else if(evt->type==RBP_GATT_EVT_PROC_ERROR)unicom_bad(a,"FD02 subscribe failed");
+        break;
     case ST_MTU:
         if (evt->type == RBP_GATT_EVT_MTU_UPDATED || evt->type == RBP_GATT_EVT_PROC_ERROR) {
             start_op(a, a->restoring?(a->service_changed_cccd?ST_SUB_CHANGED:
@@ -702,13 +762,28 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
             if(n)memcpy(a->map_buf + a->map_len, evt->value, n);
             a->map_len += n;
             if (evt->proc_complete) {
-                if (!hogp_report_map_parse(a->map_buf, a->map_len, &a->map)) {
+                a->unicom.selected=a->map_len==sizeof unicom_map && !memcmp(a->map_buf,unicom_map,sizeof unicom_map);
+                if(a->unicom.selected) {
+                    memset(&a->map,0,sizeof a->map);
+                    static const uint8_t ids[]={1,3,0xfc,0xf8,0xf9,4};
+                    a->map.input_count=sizeof ids;
+                    for(unsigned i=0;i<sizeof ids;i++)a->map.inputs[i].report_id=ids[i];
+                }
+                if (!a->unicom.selected && !hogp_report_map_parse(a->map_buf, a->map_len, &a->map)) {
                     handle_op_failure(a);
                     return;
                 }
                 /* Independent RC003 receiver documents boot-shaped payloads
                  * despite this exact 86-byte Map. Scope compatibility to it. */
                 a->rc003_boot_layout=a->map_len==86 && rbp_crc32c(a->map_buf,86)==0x6bd7daad;
+#ifndef RBP_SIMULATOR
+                /* Broad scan admission must not publish an arbitrary keyboard
+                 * as RC003. Only the two measured layouts are product profiles.
+                 * The synthetic simulator exercises additional generic HID fields. */
+                if(!a->rc003_boot_layout && !a->unicom.selected) {
+                    fail_initialization(a,"unsupported HID profile");return;
+                }
+#endif
                 a->atvv.profile_init_without_sync=a->rc003_boot_layout;
                 start_op(a, ST_ENUM_REPORT_CHARS, a->now_ms);
                 begin_next(a, a->now_ms);
@@ -722,10 +797,14 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
         break;
 
     case ST_ENUM_REPORT_CHARS:
+        /* RC003 historically keeps the first eight reports and ignores the
+         * surplus. Only Unicom requires the measured exact report topology. */
+        if(a->unicom.selected && evt->type==RBP_GATT_EVT_CHARS_FOUND && a->char_count>=RC003_MAX_REPORT_CHARS){fail_initialization(a,"too many reports");return;}
         if (evt->type == RBP_GATT_EVT_CHARS_FOUND && evt->len >= 3 &&
             a->char_count < RC003_MAX_REPORT_CHARS) {
             rc003_report_char_t *c = &a->chars[a->char_count++];
             memset(c, 0, sizeof(*c));
+            c->properties=evt->value[0];
             c->value_handle = (uint16_t)(evt->value[1] | (evt->value[2] << 8));
         } else if (evt->type == RBP_GATT_EVT_PROC_DONE) {
             if (!a->char_count) { handle_op_failure(a); return; }
@@ -986,12 +1065,14 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
 
 bool rc003_adapter_mic_stop(rc003_adapter_t *a)
 {
+    if(a->unicom.selected){bool active=a->unicom.active;unicom_stop(a);return active;}
     if (!a->ready || !a->atvv_tx_handle || (!a->atvv.stream_active && !a->atvv.open_pending)) return false;
     return rc003_atvv_request_stop(&a->atvv);
 }
 
 uint16_t rc003_adapter_mic_start(rc003_adapter_t *a)
 {
+    if(a->unicom.selected)return RBP_STATUS_VOICE_UNAVAILABLE; /* physical key only */
     if(!a->ready || !a->voice_ready || !a->atvv.caps_valid || !a->atvv_tx_handle)
         return RBP_STATUS_VOICE_UNAVAILABLE;
     if(!rbp_server_voice_wanted(a->server))return RBP_STATUS_BAD_STATE;

@@ -18,8 +18,9 @@ SIZE    := $(TOOLBIN)/riscv-none-embed-size.exe
 DEBUG ?= 0
 SDK_RX_PROBE ?= 0
 HOST_VOICE_START ?= 0
+ATT_MTU ?= 23
 .DEFAULT_GOAL := all
-VERSION ?= 0.6.5
+VERSION ?= 0.6.6
 BUILD   := build/fw
 ifeq ($(DEBUG),1)
 BUILD := build/fw-debug
@@ -37,7 +38,7 @@ INC := -I$(SDK)/hal \
        -Iprotocol/include
 
 # SDK configuration (see $(SDK)/hal/config.h)
-DEFS := -DCLK_OSC32K=0 -DRBP_FIRMWARE_SINGLETON \
+DEFS := -DCLK_OSC32K=0 -DRBP_FIRMWARE_SINGLETON -DRBP_ATT_MTU=$(ATT_MTU) \
         -DCENTRAL_MAX_CONNECTION=1 \
         -DPERIPHERAL_MAX_CONNECTION=0 \
         -DBLE_MEMHEAP_SIZE=6144 \

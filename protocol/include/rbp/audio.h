@@ -2,6 +2,7 @@
 #define RBP_AUDIO_H
 #include <stdint.h>
 #define RBP_CODEC_IMA_HI 1u
+#define RBP_CODEC_IFLYTEK_ICO 2u
 #define RBP_AUDIO_CONFIG_MAX 256u
 #define RBP_AUDIO_UNIT_MAX 65536u
 #define RBP_AUDIO_DATA_HEADER 40u

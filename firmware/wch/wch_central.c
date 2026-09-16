@@ -155,7 +155,7 @@ static bool read_identity(void) {
 static void finish_pair(void) {
     if(!read_identity()) {fail_pair(RBP_STATUS_STORAGE_FAILED);return;}
     rbp_peer_record_t rec;memset(&rec,0,sizeof rec);rec.peer_id=board_peer_counter();rec.auto_reconnect=true;
-    strcpy(rec.name,"Xiaomi Remote 2 Pro");
+    strcpy(rec.name,"BLE Remote");
     board_addr_stage(identity,identity_type);
     board_hid_flags_stage(g_adapter->hid_info_valid?g_adapter->hid_flags:255);
     pair_pending=false;
@@ -201,27 +201,54 @@ static void resolve_advertisement(const uint8_t *addr,uint8_t type,uint8_t event
         stop_scan();
     }
 }
+/* Validate advertising UTF-8 and copy only whole characters. Invalid names are hints only. */
+static uint8_t candidate_name(char *out,const uint8_t *p,unsigned n) {
+    unsigned i=0,w=0;
+    while(i<n) {
+        uint32_t cp=p[i];unsigned k=1;
+        if(cp>=0xc2 && cp<=0xdf){cp&=31;k=2;}
+        else if(cp>=0xe0 && cp<=0xef){cp&=15;k=3;}
+        else if(cp>=0xf0 && cp<=0xf4){cp&=7;k=4;}
+        else if(cp>=0x80 || cp<0x20)return 0;
+        if(i+k>n)return 0;
+        for(unsigned j=1;j<k;j++){if((p[i+j]&0xc0)!=0x80)return 0;cp=(cp<<6)|(p[i+j]&63);}
+        if((k==3&&cp<0x800)||(k==4&&cp<0x10000)||cp>0x10ffff||(cp>=0xd800&&cp<=0xdfff))return 0;
+        if(i+k<sizeof(((rbp_candidate_t*)0)->name)){memcpy(out+w,p+i,k);w+=k;}
+        i+=k;
+    }
+    out[w]=0;return w;
+}
 static void on_device(gapDeviceInfoEvent_t *info) {
     if(wc_state==WC_RESOLVE) {resolve_advertisement(info->addr,info->addrType,info->eventType);return;}
     if(wc_state!=WC_SCAN)return;
-    const uint8_t *name=NULL;uint8_t nlen=0;bool hid=false;
+    const uint8_t *name=NULL;uint8_t nlen=0;bool hid=false,voice_hint=false;
     for(unsigned pos=0;pos<info->dataLen;) {
         unsigned n=info->pEvtData[pos];if(!n)break;if(pos+n+1>info->dataLen)return;
         const uint8_t *d=info->pEvtData+pos+2;uint8_t type=info->pEvtData[pos+1];
         if(type==8 || type==9) {name=d;nlen=n-1;}
-        if(type==2 || type==3)for(unsigned j=0;j+1<n-1;j+=2)if(d[j]==0x12 && d[j+1]==0x18)hid=true;
+        if(type==2 || type==3)for(unsigned j=0;j+1<n-1;j+=2) {
+            if(d[j]==0x12 && d[j+1]==0x18)hid=true;
+            if(d[j]==0x00 && d[j+1]==0xfd)voice_hint=true;
+        }
         pos+=n+1;
     }
     uint8_t support=rc003_adapter_match((const char*)name,nlen,hid);
     DT(DT_BLE,DT_DETAIL,2,support,nlen,hid,(uint8_t)info->rssi);
     if(nlen)DT_BLOB(DT_BLE,10,name,nlen);
-    if(!support)return;
     unsigned i;for(i=0;i<candidate_count;i++)if(candidates[i].type==info->addrType && !memcmp(candidates[i].addr,info->addr,6))break;
+    bool fresh=i==candidate_count;
+    rbp_candidate_t c;memset(&c,0,sizeof c);
+    if(name)c.name_len=candidate_name(c.name,name,nlen);
+    /* GATT services need not be listed in advertisements. A valid local name
+     * (including one arriving only in SCAN_RSP) admits an unverified candidate;
+     * only post-connect profile validation establishes compatibility. */
+    bool discoverable=info->eventType==GAP_ADRPT_ADV_IND || info->eventType==GAP_ADRPT_SCAN_RSP;
+    if(fresh && (!discoverable || (!support && !hid && !voice_hint && !c.name_len)))return;
     if(i==candidate_count){if(i==MAX_CAND)return;candidate_count++;memset(&candidates[i],0,sizeof candidates[i]);memcpy(candidates[i].addr,info->addr,6);candidates[i].type=info->addrType;}
-    rbp_candidate_t c;memset(&c,0,sizeof c);c.candidate_id=i+1;c.support=support;
+    c.candidate_id=i+1;c.support=support;
     c.signal=info->rssi>-60?3:info->rssi>-75?2:1;
-    /* Expose the matched profile's label, not an unchecked advertising string. */
-    strcpy(c.name,"Xiaomi RC003");c.name_len=strlen(c.name);
+    if(!c.name_len && fresh){strcpy(c.name,support?"Xiaomi RC003":hid?"BLE HID candidate":"BLE voice candidate");c.name_len=strlen(c.name);}
+    if(!c.name_len)c.name[0]=0;
     rbp_server_on_scan_candidate(g_srv,&c);
 }
 static void wc_rssi_cb(uint16_t h,int8_t r){(void)h;(void)r;}

@@ -14,3 +14,5 @@ Run with Python 3:
     python protocol/v3/check_contract.py
 
 These independent checks complement the C/Python integration tests; they do not demonstrate hardware performance. New codecs require a registered profile and reference vectors, not an ad-hoc numeric identifier.
+
+- ico-vectors.json: codec 2/1, 396 captured ICO units and independent pre-port PCM SHA-256 hashes; checked by tests/test_ico.py and the .NET contract tests. See [ICO contract](../../docs/ico-codec-v1.md).

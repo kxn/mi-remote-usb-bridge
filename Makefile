@@ -25,6 +25,15 @@ BUILD := build/host
 HEADERS := $(wildcard protocol/include/rbp/*.h firmware/product/*.h firmware/adapters/*.h firmware/adapters/*/*.h client/c/*.h firmware/wch/*.h firmware/debug/*.h tests/mocks/*.h)
 
 .PHONY: all test protocol vectors sim python-test e2e clean
+.DEFAULT_GOAL := all
+
+$(BUILD)/test_input: tests/test_input_c.c client/c/rbp_input.c client/c/rbp_input.h protocol/include/rbp/defs.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $(filter %.c,$^)
+.PHONY: input-test
+input-test: $(BUILD)/test_input
+	./$(BUILD)/test_input
+test: input-test
 
 all: test sim
 
@@ -162,3 +171,13 @@ fault-test: $(BUILD)/test_faults
 test: fault-test
 
 $(BUILD)/test_gatt $(BUILD)/test_pair_backend: firmware/product/faults.c
+
+$(BUILD)/test_unicom: tests/test_unicom_c.c firmware/adapters/rc003/rc003_atvv.c firmware/adapters/hogp/report_map.c firmware/product/device_model.c $(PROT_SRC) $(HEADERS) firmware/adapters/rc003/rc003_adapter.c firmware/adapters/rc003/unicom_profile.inc firmware/adapters/rc003/unicom_runtime.inc
+	$(CC) $(CFLAGS) $(INC) -o $@ $(filter-out firmware/adapters/rc003/rc003_adapter.c,$(filter %.c,$^))
+.PHONY: unicom-test
+unicom-test: $(BUILD)/test_unicom
+	./$(BUILD)/test_unicom
+test: unicom-test
+$(BUILD)/test_adapter_reference $(BUILD)/test_hogp $(BUILD)/test_product $(BUILD)/sim_bridge $(BUILD)/sim_bridge_mcu $(BUILD)/sim_bridge_debug: firmware/adapters/rc003/unicom_profile.inc firmware/adapters/rc003/unicom_runtime.inc
+
+$(BUILD)/sim_bridge $(BUILD)/sim_bridge_mcu $(BUILD)/sim_bridge_debug: CFLAGS += -DRBP_SIMULATOR
