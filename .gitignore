@@ -9,6 +9,7 @@ build/
 !/references/sources.json
 !/references/sdk-lock.json
 !/references/toolchain-links.json
+!/references/release-toolchain.json
 __pycache__/
 *.py[cod]
 *.egg-info/

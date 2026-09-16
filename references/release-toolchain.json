@@ -1,0 +1,7 @@
+{
+  "name": "MounRiver GCC 8.2.0, Windows toolchain 1.92",
+  "source": "https://github.com/ch32-riscv-ug/MounRiver_Studio_Community_miror/releases/tag/1.92-toolchain",
+  "url": "https://github.com/ch32-riscv-ug/MounRiver_Studio_Community_miror/releases/download/1.92-toolchain/riscv-none-embed-gcc-8-win-1.92.zip",
+  "sha256": "da97b5f50fd20394d844fc02c2bb034f668019b9db62b86a3f15fa277f2831fd",
+  "root": "riscv-none-embed-gcc-8-win-1.92"
+}

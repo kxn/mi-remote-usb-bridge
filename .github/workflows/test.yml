@@ -22,7 +22,7 @@ jobs:
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = 'offscreen'
-          $tests = @('tests/test_rbp_python.py','tests/test_worker_races.py','tests/test_serial_transport.py','tests/test_srv_budget.py','tests/test_e2e.py','tests/test_demo.py','tests/test_diag.py','protocol/v3/check_contract.py','tools/check_design.py')
+          $tests = @('tests/test_release_firmware.py','tests/test_rbp_python.py','tests/test_worker_races.py','tests/test_serial_transport.py','tests/test_srv_budget.py','tests/test_e2e.py','tests/test_demo.py','tests/test_diag.py','protocol/v3/check_contract.py','tools/check_design.py')
           foreach ($test in $tests) {
             python $test
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

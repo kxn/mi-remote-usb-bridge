@@ -1,0 +1,130 @@
+name: Release firmware
+run-name: Firmware ${{ inputs.version }} (${{ inputs.mode }})
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Leave empty for automatic version, or enter 0.6.14 / 0.6.15-rc.1'
+        required: false
+        type: string
+      mode:
+        description: Release mode
+        type: choice
+        options: [draft, publish, build-only]
+        default: draft
+      prerelease:
+        description: Mark as pre-release (automatic for versions with a suffix)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: firmware-release
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate version
+        id: version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          gh api --paginate "repos/$env:GH_REPO/releases" --jq '.[].tag_name' | Set-Content build/used-versions.txt -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/release_firmware.py validate --used-versions build/used-versions.txt
+      - name: Reject an existing tag
+        if: inputs.mode != 'build-only'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          existing=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")
+          test -z "$existing" || { echo "Tag already exists: $RELEASE_TAG"; exit 1; }
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          install: make mingw-w64-clang-x86_64-clang
+      - name: C regression and simulator
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          make CC=clang AR=llvm-ar test reference-test sim
+          cygpath -w /clang64/bin >> "$GITHUB_PATH"
+      - name: Host regression
+        shell: pwsh
+        run: |
+          python -m pip install -r demo/requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          foreach ($test in @('tests/test_release_firmware.py','tests/test_rbp_python.py','tests/test_worker_races.py','tests/test_serial_transport.py','tests/test_srv_budget.py','tests/test_e2e.py','tests/test_demo.py','tests/test_diag.py','protocol/v3/check_contract.py','tools/check_design.py')) {
+            python $test
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/cache@v4
+        with:
+          path: build/toolchain-download
+          key: windows-firmware-toolchain-${{ hashFiles('references/release-toolchain.json') }}
+      - name: Install hash-verified compiler
+        run: python tools/install_release_toolchain.py
+      - name: Compile non-debug firmware
+        shell: msys2 {0}
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          make -f firmware/Makefile BUILD=build/firmware-release VERSION="$RELEASE_VERSION" DEBUG=0 SDK_RX_PROBE=0 HOST_VOICE_START=0 ATT_MTU=23 TOOLBIN="$PWD/build/release-toolchain/bin" -j2
+          build/release-toolchain/bin/riscv-none-embed-objcopy.exe -O ihex build/firmware-release/ch582f.elf build/firmware-release/ch582f.hex
+      - name: Package firmware
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: python tools/release_firmware.py package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ steps.version.outputs.version }}
+          path: |
+            build/release/assets/*
+            build/release/release-notes.md
+          if-no-files-found: error
+  release:
+    if: inputs.mode != 'build-only'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-${{ needs.build.outputs.version }}
+          path: release
+      - name: Create release at the tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_MODE: ${{ inputs.mode }}
+          PRE_RELEASE: ${{ inputs.prerelease }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          args=(--target "$SOURCE_COMMIT" --title "CH582F $RELEASE_VERSION" --notes-file release/release-notes.md)
+          if [[ "$RELEASE_MODE" == draft ]]; then args+=(--draft); fi
+          if [[ "$PRE_RELEASE" == true || "$RELEASE_VERSION" == *-* ]]; then args+=(--prerelease); fi
+          # Atomic creation rejects a tag created concurrently outside this workflow.
+          gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$SOURCE_COMMIT" > /dev/null
+          # Never use --clobber or edit an existing release.
+          gh release create "$RELEASE_TAG" --verify-tag "${args[@]}" release/assets/*
